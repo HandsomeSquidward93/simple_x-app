@@ -338,10 +338,10 @@
         </div>
         <button class="btn-primary" onclick="saveProfile()">Save changes</button>
       </div>
-      <div class="premium-card">
+      <div class="premium-card" onclick="showUpgradePrompt('Unlock unlimited likes, unlimited conversations, and more with Simple-x Plus.')" style="cursor:pointer">
         <div>
           <p class="premium-title">Simple-x Plus</p>
-          <p class="premium-sub">Unlimited likes · See who liked you</p>
+          <p class="premium-sub">Unlimited likes · Unlimited messages</p>
         </div>
         <span class="premium-badge">$10/mo</span>
       </div>
@@ -709,6 +709,7 @@ async function enterApp(user) {
   startRealtimeListeners()
   checkUnreadOnLoad()
   requestLocation()
+  checkUpgradeReturn()
 }
 
 async function checkUnreadOnLoad() {
@@ -1428,10 +1429,59 @@ function showUpgradePrompt(msg) {
       <p style="color:#6b6866;font-size:14px;margin-bottom:28px;line-height:1.6">${msg}</p>
       <div style="display:flex;gap:12px">
         <button onclick="document.getElementById('upgrade-modal').remove()" style="flex:1;padding:14px;border-radius:12px;border:1px solid #252525;background:transparent;color:#9e9b97;font-size:15px;cursor:pointer">Not now</button>
-        <button onclick="document.getElementById('upgrade-modal').remove()" style="flex:1;padding:14px;border-radius:12px;border:none;background:#e8503a;color:#fff;font-size:15px;font-weight:600;cursor:pointer">Upgrade — $10/mo</button>
+        <button id="upgrade-btn" onclick="startCheckout()" style="flex:1;padding:14px;border-radius:12px;border:none;background:#e8503a;color:#fff;font-size:15px;font-weight:600;cursor:pointer">Upgrade — $10/mo</button>
       </div>
     </div>`
   document.body.appendChild(modal)
+}
+
+async function startCheckout() {
+  const btn = document.getElementById('upgrade-btn')
+  if (btn) { btn.textContent = 'Loading…'; btn.disabled = true }
+
+  try {
+    const SUPABASE_FUNCTIONS_URL = 'https://ocwgwfnrstzrapsblkxm.supabase.co/functions/v1'
+    const { data: { session } } = await sb.auth.getSession()
+
+    const res = await fetch(`${SUPABASE_FUNCTIONS_URL}/create-checkout-session`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        user_id: currentUser.id,
+        email: currentUser.email,
+      }),
+    })
+
+    const { url, error } = await res.json()
+    if (error) throw new Error(error)
+
+    // Redirect to Stripe Checkout
+    window.location.href = url
+
+  } catch (err) {
+    console.error('Checkout error:', err)
+    if (btn) { btn.textContent = 'Upgrade — $10/mo'; btn.disabled = false }
+    showToast('Something went wrong. Please try again.')
+  }
+}
+
+// Handle return from Stripe after successful payment
+async function checkUpgradeReturn() {
+  const params = new URLSearchParams(window.location.search)
+  if (params.get('upgraded') === 'true') {
+    // Clean the URL
+    window.history.replaceState({}, '', window.location.pathname)
+    // Refresh profile to pick up is_premium = true
+    const { data } = await sb.from('profiles').select('*').eq('id', currentUser.id).single()
+    if (data) {
+      currentProfile = data
+      renderProfileScreen()
+    }
+    showToast('🎉 Welcome to Simple-x Plus! Enjoy unlimited likes and messages.')
+  }
 }
 
 // ── INIT ──────────────────────────────────────────
