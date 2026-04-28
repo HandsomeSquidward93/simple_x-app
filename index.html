@@ -1282,55 +1282,69 @@ async function saveProfile() {
 // ── RESEARCH ─────────────────────────────────────
 const RESEARCH_ARTICLES = [
   {
-    title: "CRISPR gene editing shows promise in eliminating HSV",
-    date: "March 2026",
-    summary: "Researchers at Fred Hutchinson Cancer Center demonstrated that a CRISPR-based therapy eliminated over 90% of latent HSV-1 in animal models. Human trials are being planned for late 2026.",
+    title: "CRISPR-based therapy targets latent HSV in preclinical studies",
+    date: "2025–2026",
+    summary: "Researchers at Fred Hutchinson Cancer Center have published preclinical results showing CRISPR gene editing can reduce latent HSV DNA in animal models. Early-stage human safety trials are in planning. This is early-phase research — a clinical treatment is likely years away, but it represents the most credible path toward a functional cure.",
     tag: "Cure Research",
     tagColor: "#2ecc71",
     tagBg: "#0d2e1a",
-    link: "https://www.fredhutch.org"
+    link: "https://www.fredhutch.org/en/research/divisions/vaccine-infectious-disease-division.html"
   },
   {
-    title: "Pritelivir antiviral shows superior results over acyclovir",
-    date: "January 2026",
-    summary: "Phase 3 trials of pritelivir, a next-generation antiviral, showed it reduces viral shedding significantly more than current standard treatments. FDA review is underway.",
+    title: "Pritelivir: a next-generation antiviral in late-stage trials",
+    date: "Ongoing",
+    summary: "Pritelivir works differently from acyclovir-class drugs by targeting the viral helicase-primase complex, reducing viral shedding more consistently. Phase 3 trials are ongoing. It is not yet FDA approved but has shown strong results for patients who don't respond well to current antivirals.",
     tag: "Treatment",
     tagColor: "#3498db",
     tagBg: "#0a1a2e",
-    link: "https://www.nih.gov"
+    link: "https://www.nih.gov/news-events/news-releases"
   },
   {
-    title: "mRNA vaccine trial for HSV-2 enters Phase 2",
-    date: "November 2025",
-    summary: "Moderna's mRNA-based HSV-2 vaccine candidate entered Phase 2 trials showing strong immune response in Phase 1. A preventive vaccine could reach market within 5-7 years if trials continue successfully.",
+    title: "mRNA vaccine candidates for HSV-2 in active trials",
+    date: "2024–2026",
+    summary: "Multiple mRNA-based HSV-2 vaccine candidates are in clinical trials, including programs from Moderna and research groups at Penn Medicine. Phase 1 results have shown immune responses in seronegative participants. These are therapeutic and preventive vaccine candidates — timelines to market remain uncertain.",
     tag: "Vaccine",
     tagColor: "#e8503a",
     tagBg: "#3a1a14",
-    link: "https://www.modernatx.com"
+    link: "https://clinicaltrials.gov/search?term=HSV+vaccine"
   },
   {
-    title: "Functional cure definition gains consensus among researchers",
-    date: "October 2025",
-    summary: "A landmark paper published in Nature Medicine proposed a standardized definition of a functional HSV cure — one that eliminates outbreaks and transmission risk without requiring daily medication.",
-    tag: "Science",
-    tagColor: "#f5c518",
-    tagBg: "#2e2200",
-    link: "https://www.nature.com/nm"
-  },
-  {
-    title: "Daily valacyclovir shown to reduce transmission by 48%",
-    date: "2024 — Ongoing",
-    summary: "Long-term studies continue to confirm that daily suppressive therapy with valacyclovir reduces HSV-2 transmission to uninfected partners by approximately 48% when combined with consistent condom use.",
+    title: "Suppressive therapy: what the evidence actually shows",
+    date: "Established",
+    summary: "Daily valacyclovir (Valtrex) reduces HSV-2 transmission to uninfected partners by approximately 48% in clinical studies when combined with consistent condom use. It also reduces outbreak frequency by 70–80% for most people. This is the most evidence-backed tool currently available for managing HSV.",
     tag: "Treatment",
     tagColor: "#3498db",
     tagBg: "#0a1a2e",
-    link: "https://www.cdc.gov/std/herpes"
+    link: "https://www.cdc.gov/std/herpes/stdfact-herpes.htm"
+  },
+  {
+    title: "HSV prevalence: understanding the actual numbers",
+    date: "CDC / WHO Data",
+    summary: "HSV-1 affects roughly 67% of adults globally under 50. HSV-2 affects approximately 11% of adults in the US aged 14–49. The majority of people with HSV are undiagnosed. Stigma significantly outpaces medical risk — most people with HSV live without symptoms or with manageable, infrequent outbreaks.",
+    tag: "Education",
+    tagColor: "#f5c518",
+    tagBg: "#2e2200",
+    link: "https://www.cdc.gov/std/herpes/stdfact-herpes.htm"
+  },
+  {
+    title: "Mental health and HSV: addressing the stigma gap",
+    date: "Research Review",
+    summary: "Studies consistently show the psychological impact of an HSV diagnosis — including anxiety, depression, and social withdrawal — often exceeds the physical burden of the virus. Communities, support networks, and accurate education are cited as the most effective interventions. You are not alone and the stigma does not reflect the medical reality.",
+    tag: "Wellbeing",
+    tagColor: "#9b59b6",
+    tagBg: "#1a0d2e",
+    link: "https://www.ashasexualhealth.org/herpes/"
   },
 ]
 
 function loadResearch() {
   const list = el('research-list')
-  list.innerHTML = RESEARCH_ARTICLES.map(a => `
+  list.innerHTML = `
+    <div style="margin-bottom:20px">
+      <h2 style="color:#f0ede8;font-size:18px;font-weight:700;margin-bottom:6px">HSV Research & Education</h2>
+      <p style="color:#6b6866;font-size:13px;line-height:1.5">Summaries of current research, treatments, and resources. Always consult your healthcare provider for medical advice.</p>
+    </div>
+    ${RESEARCH_ARTICLES.map(a => `
     <div style="background:#1c1c1c;border-radius:16px;border:1px solid #252525;padding:18px;margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
         <span style="background:${a.tagBg};color:${a.tagColor};font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px">${a.tag}</span>
@@ -1338,9 +1352,13 @@ function loadResearch() {
       </div>
       <h3 style="color:#f0ede8;font-size:15px;font-weight:600;margin-bottom:8px;line-height:1.4">${a.title}</h3>
       <p style="color:#9e9b97;font-size:13px;line-height:1.6;margin-bottom:12px">${a.summary}</p>
-      <a href="${a.link}" target="_blank" style="color:#e8503a;font-size:13px;text-decoration:none">Read more →</a>
+      <a href="${a.link}" target="_blank" style="color:#e8503a;font-size:13px;text-decoration:none;font-weight:500">Read more →</a>
     </div>
-  `).join('')
+  `).join('')}
+    <div style="background:#141414;border-radius:16px;border:1px solid #252525;padding:16px;margin-top:8px;margin-bottom:20px">
+      <p style="color:#6b6866;font-size:12px;line-height:1.6;text-align:center">Simple-x does not provide medical advice. Research summaries are for informational purposes only. Speak with a healthcare provider about treatment options.</p>
+    </div>
+  `
 }
 
 // ── FILTERS & LOCATION ───────────────────────────
