@@ -295,6 +295,21 @@
       </div>
     </div>
 
+    <!-- COMMUNITY TAB -->
+    <div id="community-content" style="display:none;position:absolute;top:56px;left:0;right:0;bottom:64px;overflow-y:auto;padding:20px">
+
+      <!-- Header -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <h2 style="color:#f0ede8;font-size:18px;font-weight:700">Community</h2>
+        <button id="new-post-btn" onclick="showNewPostModal()" style="background:#e8503a;border:none;color:#fff;font-size:13px;font-weight:600;padding:8px 16px;border-radius:20px;cursor:pointer">+ Post</button>
+      </div>
+      <p style="color:#6b6866;font-size:13px;margin-bottom:20px">A space to share, support, and connect.</p>
+
+      <div id="community-list">
+        <div style="text-align:center;padding:40px 0"><p style="color:#6b6866;font-size:14px">Loading posts...</p></div>
+      </div>
+    </div>
+
     <!-- PROFILE TAB -->
     <div id="profile-content" style="display:none">
       <input type="file" id="photo-input" accept="image/*" style="display:none" onchange="uploadPhoto(this)" multiple />
@@ -363,6 +378,10 @@
       <button class="nav-btn" id="nav-research" onclick="switchTab2('research')">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6b6866" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
         <span class="nav-label">Research</span>
+      </button>
+      <button class="nav-btn" id="nav-community" onclick="switchTab2('community')">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6b6866" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span class="nav-label">Community</span>
       </button>
       <button class="nav-btn" id="nav-profile" onclick="switchTab2('profile')">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6b6866" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -778,6 +797,141 @@ async function checkUnreadOnLoad() {
   if (count > 0) setUnreadDot(true)
 }
 
+// ── COMMUNITY ─────────────────────────────────────
+const COMMUNITY_RULES = [
+  "Be kind — this is a safe, judgment-free space.",
+  "No explicit sexual content or graphic imagery.",
+  "No harassment, hate speech, or personal attacks.",
+  "No spam, self-promotion, or unrelated links.",
+  "Health misinformation will be removed.",
+  "Respect privacy — don't share others' personal details.",
+]
+
+async function loadCommunity() {
+  const list = el('community-list')
+  list.innerHTML = '<div style="text-align:center;padding:40px 0"><p style="color:#6b6866;font-size:14px">Loading posts...</p></div>'
+
+  const { data: posts, error } = await sb
+    .from('community_posts')
+    .select('*, profiles(display_name, photo_urls)')
+    .order('created_at', { ascending: false })
+    .limit(50)
+
+  if (error) {
+    list.innerHTML = '<div style="text-align:center;padding:40px 0"><p style="color:#6b6866;font-size:14px">Could not load posts.</p></div>'
+    return
+  }
+
+  if (!posts || posts.length === 0) {
+    list.innerHTML = `
+      <div style="text-align:center;padding:60px 20px">
+        <p style="font-size:32px;margin-bottom:12px">💬</p>
+        <p style="color:#f0ede8;font-size:16px;font-weight:600;margin-bottom:8px">No posts yet</p>
+        <p style="color:#6b6866;font-size:14px">Be the first to share something with the community.</p>
+      </div>`
+    return
+  }
+
+  list.innerHTML = posts.map(p => {
+    const name = p.profiles?.display_name || 'Member'
+    const avatar = p.profiles?.photo_urls?.[0]
+    const isOwn = p.user_id === currentUser.id
+    const isAdminUser = currentProfile?.is_admin
+
+    return `
+    <div style="background:#1c1c1c;border-radius:16px;border:1px solid #252525;padding:16px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <div class="avatar" style="width:36px;height:36px;font-size:13px;flex-shrink:0">
+          ${avatar ? `<img src="${avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : name.charAt(0).toUpperCase()}
+        </div>
+        <div style="flex:1">
+          <p style="color:#f0ede8;font-size:14px;font-weight:600">${name}</p>
+          <p style="color:#6b6866;font-size:12px">${new Date(p.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+        </div>
+        ${isOwn || isAdminUser ? `
+        <button onclick="deletePost('${p.id}')" style="background:none;border:none;color:#6b6866;font-size:12px;cursor:pointer;padding:4px 8px;border-radius:8px;border:1px solid #252525">
+          ${isAdminUser && !isOwn ? 'Remove' : 'Delete'}
+        </button>` : ''}
+      </div>
+      ${p.title ? `<p style="color:#f0ede8;font-size:15px;font-weight:600;margin-bottom:6px">${p.title}</p>` : ''}
+      <p style="color:#9e9b97;font-size:14px;line-height:1.6;white-space:pre-wrap">${p.body}</p>
+    </div>`
+  }).join('')
+}
+
+function showNewPostModal() {
+  if (!currentProfile?.is_premium && !currentProfile?.is_admin) {
+    showUpgradePrompt('Community posting is a Simple-x Plus feature. Upgrade to share with the community.')
+    return
+  }
+
+  const existing = document.getElementById('new-post-modal')
+  if (existing) existing.remove()
+
+  const modal = document.createElement('div')
+  modal.id = 'new-post-modal'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);display:flex;align-items:flex-end;justify-content:center;z-index:9999'
+  modal.innerHTML = `
+    <div style="background:#141414;border-radius:20px 20px 0 0;padding:24px;width:100%;max-width:480px;border-top:1px solid #252525;max-height:90vh;overflow-y:auto">
+      <h2 style="color:#f0ede8;font-size:18px;font-weight:700;margin-bottom:16px">New Post</h2>
+
+      <div style="background:#0d1f14;border:1px solid #1a3320;border-radius:12px;padding:14px;margin-bottom:16px">
+        <p style="color:#27ae60;font-size:12px;font-weight:700;margin-bottom:8px">📋 Community Rules</p>
+        ${COMMUNITY_RULES.map((r, i) => `<p style="color:#6b9e78;font-size:12px;line-height:1.8">${i + 1}. ${r}</p>`).join('')}
+      </div>
+
+      <input id="post-title" placeholder="Title (optional)" style="width:100%;padding:12px;background:#1c1c1c;border:1px solid #252525;border-radius:12px;color:#f0ede8;font-size:14px;margin-bottom:10px;box-sizing:border-box" />
+      <textarea id="post-body" placeholder="Share something with the community..." rows="5" style="width:100%;padding:12px;background:#1c1c1c;border:1px solid #252525;border-radius:12px;color:#f0ede8;font-size:14px;resize:vertical;box-sizing:border-box;font-family:inherit"></textarea>
+
+      <p style="color:#6b6866;font-size:11px;margin:8px 0 16px">Posts that violate community rules will be removed. Repeat violations may result in account suspension.</p>
+
+      <div style="display:flex;gap:10px">
+        <button onclick="document.getElementById('new-post-modal').remove()" style="flex:1;padding:14px;border-radius:12px;border:1px solid #252525;background:transparent;color:#9e9b97;font-size:15px;cursor:pointer">Cancel</button>
+        <button id="submit-post-btn" onclick="submitPost()" style="flex:1;padding:14px;border-radius:12px;border:none;background:#e8503a;color:#fff;font-size:15px;font-weight:600;cursor:pointer">Post</button>
+      </div>
+    </div>
+  `
+  document.body.appendChild(modal)
+}
+
+async function submitPost() {
+  const title = document.getElementById('post-title')?.value.trim()
+  const body = document.getElementById('post-body')?.value.trim()
+  const btn = document.getElementById('submit-post-btn')
+
+  if (!body) { showToast('Please write something before posting.'); return }
+  if (body.length > 2000) { showToast('Post is too long. Max 2000 characters.'); return }
+
+  btn.textContent = 'Posting…'
+  btn.disabled = true
+
+  const { error } = await sb.from('community_posts').insert({
+    user_id: currentUser.id,
+    title: title || null,
+    body,
+  })
+
+  if (error) {
+    showToast('Could not post. Please try again.')
+    btn.textContent = 'Post'
+    btn.disabled = false
+    return
+  }
+
+  document.getElementById('new-post-modal')?.remove()
+  showToast('Post shared with the community.')
+  loadCommunity()
+}
+
+async function deletePost(postId) {
+  if (!confirm('Remove this post? This cannot be undone.')) return
+
+  const { error } = await sb.from('community_posts').delete().eq('id', postId)
+  if (error) { showToast('Could not remove post.'); return }
+  showToast('Post removed.')
+  loadCommunity()
+}
+
 // ── PUSH NOTIFICATIONS ────────────────────────────
 const VAPID_PUBLIC_KEY = 'BJqa6uf7gawH1oyCOgNuob6DancybpR3MPdjOFgOiIxSnxBL6qHrnsSX5391kU56zFZszUD-eoppLldCNwjPPTU'
 
@@ -890,7 +1044,7 @@ function setUnreadDot(show) {
 
 // ── NAV ───────────────────────────────────────────
 function switchTab2(tab) {
-  const tabs = ['discover', 'messages', 'research', 'profile']
+  const tabs = ['discover', 'messages', 'research', 'community', 'profile']
   tabs.forEach(t => {
     const content = el(t === 'discover' ? 'discover-content' : t + '-content')
     if (content) content.style.display = t === tab ? '' : 'none'
@@ -904,6 +1058,7 @@ function switchTab2(tab) {
   el('location-pill').style.display = tab === 'discover' ? '' : 'none'
   if (tab === 'messages') { loadMatches(); setUnreadDot(false) }
   if (tab === 'research') loadResearch()
+  if (tab === 'community') loadCommunity()
   if (tab === 'profile') renderProfileScreen()
 }
 
