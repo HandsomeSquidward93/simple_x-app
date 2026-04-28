@@ -711,6 +711,7 @@ async function enterApp(user) {
   requestLocation()
   checkUpgradeReturn()
   checkProfileComplete()
+  registerPushNotifications()
 }
 
 function checkProfileComplete() {
@@ -777,6 +778,62 @@ async function checkUnreadOnLoad() {
   if (count > 0) setUnreadDot(true)
 }
 
+// ── PUSH NOTIFICATIONS ────────────────────────────
+const VAPID_PUBLIC_KEY = 'BJqa6uf7gawH1oyCOgNuob6DancybpR3MPdjOFgOiIxSnxBL6qHrnsSX5391kU56zFZszUD-eoppLldCNwjPPTU'
+
+async function registerPushNotifications() {
+  try {
+    if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) return
+
+    const permission = await Notification.requestPermission()
+    if (permission !== 'granted') return
+
+    const reg = await navigator.serviceWorker.ready
+    let sub = await reg.pushManager.getSubscription()
+
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      })
+    }
+
+    const { endpoint, keys } = sub.toJSON()
+    await sb.from('push_subscriptions').upsert({
+      user_id: currentUser.id,
+      endpoint,
+      p256dh: keys.p256dh,
+      auth: keys.auth
+    }, { onConflict: 'user_id,endpoint' })
+
+  } catch (err) {
+    console.warn('Push registration failed:', err)
+  }
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const raw = atob(base64)
+  return new Uint8Array([...raw].map(c => c.charCodeAt(0)))
+}
+
+async function sendPush(userId, title, body, tag) {
+  try {
+    const { data: { session } } = await sb.auth.getSession()
+    await fetch('https://ocwgwfnrstzrapsblkxm.supabase.co/functions/v1/send-push', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify({ user_id: userId, title, body, tag, url: '/simple_x-app/' })
+    })
+  } catch (err) {
+    console.warn('Push send failed:', err)
+  }
+}
+
 function startRealtimeListeners() {
   const appStartTime = Date.now()
 
@@ -789,7 +846,11 @@ function startRealtimeListeners() {
       if (m.user_a === currentUser.id || m.user_b === currentUser.id) {
         const otherId = m.user_a === currentUser.id ? m.user_b : m.user_a
         sb.from('profiles').select('*').eq('id', otherId).single().then(({ data }) => {
-          if (data) showMatchModal(data)
+          if (data) {
+            showMatchModal(data)
+            // Notify the OTHER user they got a match
+            sendPush(otherId, "It's a match! 🎉", `You matched with ${currentProfile?.display_name || 'someone'} on Simple-x`, 'match')
+          }
         })
       }
     })
@@ -805,6 +866,8 @@ function startRealtimeListeners() {
           // Refresh matches list if it's visible
           const msgsTab = el('messages-content')
           if (msgsTab && msgsTab.style.display !== 'none') loadMatches()
+          // Notify recipient
+          sendPush(msg.recipient_id || msg.sender_id, 'New message 💬', `${currentProfile?.display_name || 'Someone'} sent you a message on Simple-x`, 'message')
         }
       }
     })
