@@ -1301,11 +1301,42 @@ async function showProfilePreview(userId) {
           <p style="color:#e8503a;font-size:13px;font-weight:600;margin-bottom:4px">⭐ You already liked ${name.split(' ')[0]}</p>
           <p style="color:#6b6866;font-size:12px;line-height:1.5">Upgrade to Plus to send a message directly — don't wait for a match.</p>
         </div>` : ''}
-        <div style="display:flex;gap:10px">${actionButtons}</div>
+        <div id="preview-action-btns" style="display:flex;gap:10px"></div>
       </div>
     </div>
   `
   document.body.appendChild(modal)
+
+  // Set buttons after modal is in DOM
+  const btnsContainer = document.getElementById('preview-action-btns')
+  if (btnsContainer) {
+    const winkB = document.createElement('button')
+    winkB.style.cssText = 'flex:1;padding:14px;border-radius:12px;border:1px solid #252525;background:transparent;color:#f5c518;font-size:20px;cursor:pointer'
+    winkB.textContent = '😉'
+    winkB.onclick = () => sendWink(p.id, name.split(' ')[0])
+
+    const msgB = document.createElement('button')
+    msgB.style.cssText = 'flex:2;padding:14px;border-radius:12px;border:none;background:#e8503a;color:#fff;font-size:15px;font-weight:600;cursor:pointer'
+    msgB.textContent = '💬 Message'
+    if (isMatched || currentProfile?.is_premium || currentProfile?.is_admin) {
+      msgB.onclick = () => { document.getElementById('profile-preview-modal')?.remove(); openDirectMessage(p.id) }
+    } else {
+      msgB.onclick = () => { document.getElementById('profile-preview-modal')?.remove(); showUpgradePrompt('Upgrade to Plus to message anyone directly — no match required.') }
+    }
+
+    if (!alreadyLiked && !isMatched) {
+      const likeB = document.createElement('button')
+      likeB.style.cssText = 'flex:2;padding:14px;border-radius:12px;border:none;background:#252525;color:#f0ede8;font-size:15px;font-weight:600;cursor:pointer'
+      likeB.textContent = '❤️ Like'
+      likeB.onclick = () => { document.getElementById('profile-preview-modal')?.remove(); likeFromPreview(p.id) }
+      btnsContainer.appendChild(winkB)
+      btnsContainer.appendChild(likeB)
+      btnsContainer.appendChild(msgB)
+    } else {
+      btnsContainer.appendChild(winkB)
+      btnsContainer.appendChild(msgB)
+    }
+  }
 }
 
 async function openDirectMessage(userId) {
