@@ -1258,24 +1258,27 @@ async function showProfilePreview(userId) {
 
   // Build action buttons based on state
   let actionButtons = ''
-  if (isMatched) {
-    actionButtons = `
-      <button onclick="sendWink('${p.id}','${name.split(' ')[0]}')" style="flex:1;padding:14px;border-radius:12px;border:1px solid #252525;background:transparent;color:#f5c518;font-size:20px;cursor:pointer">😉</button>
-      <button onclick="document.getElementById('profile-preview-modal').remove();switchTab2('messages')" style="flex:2;padding:14px;border-radius:12px;border:none;background:#e8503a;color:#fff;font-size:15px;font-weight:600;cursor:pointer">💬 Message</button>`
-  } else if (alreadyLiked) {
-    if (currentProfile?.is_premium) {
-      actionButtons = `
-      <button onclick="sendWink('${p.id}','${name.split(' ')[0]}')" style="flex:1;padding:14px;border-radius:12px;border:1px solid #252525;background:transparent;color:#f5c518;font-size:20px;cursor:pointer">😉</button>
-      <button disabled style="flex:2;padding:14px;border-radius:12px;border:none;background:#252525;color:#6b6866;font-size:14px;cursor:default">✓ Already Liked</button>`
-    } else {
-      actionButtons = `
-      <button onclick="sendWink('${p.id}','${name.split(' ')[0]}')" style="flex:1;padding:14px;border-radius:12px;border:1px solid #252525;background:transparent;color:#f5c518;font-size:20px;cursor:pointer">😉</button>
-      <button onclick="document.getElementById('profile-preview-modal').remove();showUpgradePrompt('Upgrade to Plus to send messages directly.')" style="flex:2;padding:14px;border-radius:12px;border:none;background:#e8503a;color:#fff;font-size:14px;font-weight:600;cursor:pointer">⭐ Message</button>`
-    }
+  const canMessageFree = isMatched
+  const canMessagePlus = currentProfile?.is_premium || currentProfile?.is_admin
+
+  const winkBtn = `<button onclick="sendWink('${p.id}','${name.split(' ')[0]}')" style="flex:1;padding:14px;border-radius:12px;border:1px solid #252525;background:transparent;color:#f5c518;font-size:20px;cursor:pointer">😉</button>`
+
+  let msgBtn = ''
+  if (canMessageFree || canMessagePlus) {
+    msgBtn = `<button onclick="document.getElementById('profile-preview-modal').remove();openDirectMessage('${p.id}')" style="flex:2;padding:14px;border-radius:12px;border:none;background:#e8503a;color:#fff;font-size:15px;font-weight:600;cursor:pointer">💬 Message</button>`
   } else {
-    actionButtons = `
-      <button onclick="sendWink('${p.id}','${name.split(' ')[0]}')" style="flex:1;padding:14px;border-radius:12px;border:1px solid #252525;background:transparent;color:#f5c518;font-size:20px;cursor:pointer">😉</button>
-      <button onclick="document.getElementById('profile-preview-modal').remove();likeFromPreview('${p.id}')" style="flex:2;padding:14px;border-radius:12px;border:none;background:#e8503a;color:#fff;font-size:15px;font-weight:600;cursor:pointer">❤️ Like</button>`
+    msgBtn = `<button onclick="document.getElementById('profile-preview-modal').remove();showUpgradePrompt('Upgrade to Plus to message anyone directly — no match required.')" style="flex:2;padding:14px;border-radius:12px;border:none;background:#e8503a;color:#fff;font-size:14px;font-weight:600;cursor:pointer">💬 Message</button>`
+  }
+
+  let likeBtn = ''
+  if (!alreadyLiked && !isMatched) {
+    likeBtn = `<button onclick="document.getElementById('profile-preview-modal').remove();likeFromPreview('${p.id}')" style="flex:2;padding:14px;border-radius:12px;border:none;background:#252525;color:#f0ede8;font-size:15px;font-weight:600;cursor:pointer">❤️ Like</button>`
+  }
+
+  if (!alreadyLiked && !isMatched) {
+    actionButtons = `${winkBtn}${likeBtn}${msgBtn}`
+  } else {
+    actionButtons = `${winkBtn}${msgBtn}`
   }
 
   const modal = document.createElement('div')
@@ -1303,6 +1306,32 @@ async function showProfilePreview(userId) {
     </div>
   `
   document.body.appendChild(modal)
+}
+
+async function openDirectMessage(userId) {
+  // Find existing match
+  let { data: match } = await sb.from('matches')
+    .select('*, profiles_a:profiles!matches_user_a_fkey(*), profiles_b:profiles!matches_user_b_fkey(*)')
+    .or(`and(user_a.eq.${currentUser.id},user_b.eq.${userId}),and(user_a.eq.${userId},user_b.eq.${currentUser.id})`)
+    .single()
+
+  // If no match exists and user is Plus/admin, create one
+  if (!match) {
+    if (!currentProfile?.is_premium && !currentProfile?.is_admin) {
+      showUpgradePrompt('Upgrade to Plus to message anyone directly — no match required.')
+      return
+    }
+    const { data: newMatch } = await sb.from('matches')
+      .insert({ user_a: currentUser.id, user_b: userId })
+      .select('*, profiles_a:profiles!matches_user_a_fkey(*), profiles_b:profiles!matches_user_b_fkey(*)')
+      .single()
+    match = newMatch
+  }
+
+  if (!match) { showToast('Could not open conversation. Please try again.'); return }
+
+  switchTab2('messages')
+  setTimeout(() => openChat(match), 150)
 }
 
 async function sendWink(userId, name) {
