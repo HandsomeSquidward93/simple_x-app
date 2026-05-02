@@ -1708,9 +1708,54 @@ function appendMessage(msg) {
   const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   const div = document.createElement('div')
   div.className = 'bubble ' + (mine ? 'mine' : 'theirs')
-  div.innerHTML = msg.content + `<div class="bubble-time">${time}</div>`
+  div.dataset.msgId = msg.id
+  div.innerHTML = `<span class="bubble-text">${msg.content}</span><div class="bubble-time">${time}</div>`
+
+  // Long press to delete own messages
+  if (mine) {
+    let pressTimer = null
+    div.addEventListener('touchstart', () => {
+      pressTimer = setTimeout(() => showDeleteMessageMenu(msg.id, div), 600)
+    })
+    div.addEventListener('touchend', () => clearTimeout(pressTimer))
+    div.addEventListener('touchmove', () => clearTimeout(pressTimer))
+    // Desktop right-click
+    div.addEventListener('contextmenu', e => {
+      e.preventDefault()
+      showDeleteMessageMenu(msg.id, div)
+    })
+  }
+
   msgs.appendChild(div)
   msgs.scrollTop = msgs.scrollHeight
+}
+
+function showDeleteMessageMenu(msgId, bubbleEl) {
+  const existing = document.getElementById('msg-delete-menu')
+  if (existing) existing.remove()
+
+  const rect = bubbleEl.getBoundingClientRect()
+  const menu = document.createElement('div')
+  menu.id = 'msg-delete-menu'
+  menu.style.cssText = `position:fixed;top:${rect.top - 48}px;right:16px;background:#1c1c1c;border:1px solid #252525;border-radius:12px;padding:4px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.5)`
+  menu.innerHTML = `<button onclick="deleteMessage('${msgId}')" style="display:block;width:100%;padding:10px 20px;border:none;background:transparent;color:#e8503a;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap">🗑 Delete message</button>`
+
+  document.body.appendChild(menu)
+  setTimeout(() => document.addEventListener('click', () => menu.remove(), { once: true }), 10)
+}
+
+async function deleteMessage(msgId) {
+  document.getElementById('msg-delete-menu')?.remove()
+  const { error } = await sb.from('messages').delete().eq('id', msgId).eq('sender_id', currentUser.id)
+  if (error) { showToast('Could not delete message.'); return }
+
+  // Remove bubble from UI
+  const bubble = document.querySelector(`.bubble[data-msg-id="${msgId}"]`)
+  if (bubble) {
+    bubble.style.opacity = '0'
+    bubble.style.transition = 'opacity 0.2s'
+    setTimeout(() => bubble.remove(), 200)
+  }
 }
 
 async function checkMessageLimit() {
