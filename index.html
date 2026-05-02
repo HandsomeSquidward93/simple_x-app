@@ -1260,21 +1260,22 @@ async function showProfilePreview(userId) {
   let actionButtons = ''
   if (isMatched) {
     actionButtons = `
-      <button onclick="document.getElementById('profile-preview-modal').remove();switchTab2('messages')" style="flex:1;padding:14px;border-radius:12px;border:none;background:#e8503a;color:#fff;font-size:15px;font-weight:600;cursor:pointer">💬 Message</button>`
+      <button onclick="sendWink('${p.id}','${name.split(' ')[0]}')" style="flex:1;padding:14px;border-radius:12px;border:1px solid #252525;background:transparent;color:#f5c518;font-size:20px;cursor:pointer">😉</button>
+      <button onclick="document.getElementById('profile-preview-modal').remove();switchTab2('messages')" style="flex:2;padding:14px;border-radius:12px;border:none;background:#e8503a;color:#fff;font-size:15px;font-weight:600;cursor:pointer">💬 Message</button>`
   } else if (alreadyLiked) {
     if (currentProfile?.is_premium) {
       actionButtons = `
-        <button onclick="document.getElementById('profile-preview-modal').remove()" style="flex:1;padding:14px;border-radius:12px;border:1px solid #252525;background:transparent;color:#9e9b97;font-size:15px;cursor:pointer">Close</button>
-        <button disabled style="flex:1;padding:14px;border-radius:12px;border:none;background:#252525;color:#6b6866;font-size:14px;cursor:default">✓ Already Liked</button>`
+      <button onclick="sendWink('${p.id}','${name.split(' ')[0]}')" style="flex:1;padding:14px;border-radius:12px;border:1px solid #252525;background:transparent;color:#f5c518;font-size:20px;cursor:pointer">😉</button>
+      <button disabled style="flex:2;padding:14px;border-radius:12px;border:none;background:#252525;color:#6b6866;font-size:14px;cursor:default">✓ Already Liked</button>`
     } else {
       actionButtons = `
-        <button onclick="document.getElementById('profile-preview-modal').remove()" style="flex:1;padding:14px;border-radius:12px;border:1px solid #252525;background:transparent;color:#9e9b97;font-size:15px;cursor:pointer">Close</button>
-        <button onclick="document.getElementById('profile-preview-modal').remove();showUpgradePrompt('Upgrade to Plus to unlock unlimited likes and start conversations with people you\\\'ve already liked.')" style="flex:1;padding:14px;border-radius:12px;border:none;background:#e8503a;color:#fff;font-size:14px;font-weight:600;cursor:pointer">⭐ Upgrade to Message</button>`
+      <button onclick="sendWink('${p.id}','${name.split(' ')[0]}')" style="flex:1;padding:14px;border-radius:12px;border:1px solid #252525;background:transparent;color:#f5c518;font-size:20px;cursor:pointer">😉</button>
+      <button onclick="document.getElementById('profile-preview-modal').remove();showUpgradePrompt('Upgrade to Plus to send messages directly.')" style="flex:2;padding:14px;border-radius:12px;border:none;background:#e8503a;color:#fff;font-size:14px;font-weight:600;cursor:pointer">⭐ Message</button>`
     }
   } else {
     actionButtons = `
-      <button onclick="document.getElementById('profile-preview-modal').remove()" style="flex:1;padding:14px;border-radius:12px;border:1px solid #252525;background:transparent;color:#9e9b97;font-size:15px;cursor:pointer">Close</button>
-      <button onclick="document.getElementById('profile-preview-modal').remove();swipe('${p.id}','right')" style="flex:1;padding:14px;border-radius:12px;border:none;background:#e8503a;color:#fff;font-size:15px;font-weight:600;cursor:pointer">❤️ Like</button>`
+      <button onclick="sendWink('${p.id}','${name.split(' ')[0]}')" style="flex:1;padding:14px;border-radius:12px;border:1px solid #252525;background:transparent;color:#f5c518;font-size:20px;cursor:pointer">😉</button>
+      <button onclick="document.getElementById('profile-preview-modal').remove();likeFromPreview('${p.id}')" style="flex:2;padding:14px;border-radius:12px;border:none;background:#e8503a;color:#fff;font-size:15px;font-weight:600;cursor:pointer">❤️ Like</button>`
   }
 
   const modal = document.createElement('div')
@@ -1302,6 +1303,37 @@ async function showProfilePreview(userId) {
     </div>
   `
   document.body.appendChild(modal)
+}
+
+async function sendWink(userId, name) {
+  const btn = event?.target
+  if (btn) { btn.textContent = '✓'; btn.disabled = true }
+
+  // Check if already winked recently (last 24hrs)
+  const { data: existing } = await sb.from('winks')
+    .select('id').eq('sender_id', currentUser.id).eq('receiver_id', userId)
+    .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+    .single()
+
+  if (existing) { showToast(`You already winked at ${name} recently.`); return }
+
+  await sb.from('winks').insert({ sender_id: currentUser.id, receiver_id: userId })
+  sendPush(userId, '😉 Someone winked at you!', `${currentProfile?.display_name || 'Someone'} winked at you on Simple-x`, 'wink')
+  showToast(`Wink sent to ${name}! 😉`)
+}
+
+async function likeFromPreview(userId) {
+  if (!(await checkLikeLimit())) return
+  await sb.from('swipes').insert({ swiper_id: currentUser.id, swiped_id: userId, direction: 'like' })
+  const { data: theirSwipe } = await sb.from('swipes')
+    .select('id').eq('swiper_id', userId).eq('swiped_id', currentUser.id).in('direction', ['like','super']).maybeSingle()
+  if (theirSwipe) {
+    await sb.from('matches').insert({ user_a: currentUser.id, user_b: userId })
+    showToast("It's a match! 🎉")
+  } else {
+    showToast('Liked! ❤️')
+  }
+  loadLikedRecently()
 }
 
 async function updateLastSeen() {
