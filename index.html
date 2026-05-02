@@ -275,30 +275,40 @@
     <!-- DISCOVER TAB -->
     <div id="discover-content">
 
-      <!-- ONLINE NOW -->
-      <div id="online-section" style="padding:12px 16px 0">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <div style="display:flex;align-items:center;gap:6px">
-            <span style="width:8px;height:8px;background:#2ecc71;border-radius:50%;display:inline-block"></span>
-            <span style="color:#f0ede8;font-size:14px;font-weight:600">Online Now</span>
-          </div>
+      <!-- SUB-TAB BAR -->
+      <div style="display:flex;border-bottom:1px solid #1c1c1c;background:#0a0a0a;position:sticky;top:56px;z-index:10">
+        <button id="sub-tab-swipe" onclick="switchDiscoverTab('swipe')" style="flex:1;padding:12px;border:none;background:transparent;color:#e8503a;font-size:14px;font-weight:600;cursor:pointer;border-bottom:2px solid #e8503a">Discover</button>
+        <button id="sub-tab-online" onclick="switchDiscoverTab('online')" style="flex:1;padding:12px;border:none;background:transparent;color:#6b6866;font-size:14px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent">● Online</button>
+        <button id="sub-tab-liked" onclick="switchDiscoverTab('liked')" style="flex:1;padding:12px;border:none;background:transparent;color:#6b6866;font-size:14px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent">❤️ Liked</button>
+      </div>
+
+      <!-- SWIPE VIEW -->
+      <div id="discover-swipe-view">
+        <div class="card-stack" id="card-stack"></div>
+      </div>
+
+      <!-- ONLINE NOW VIEW -->
+      <div id="discover-online-view" style="display:none;padding:16px">
+        <div style="display:flex;gap:8px;margin-bottom:16px;overflow-x:auto;scrollbar-width:none">
+          <button onclick="setOnlineSort('recent')" id="sort-recent" style="flex-shrink:0;padding:6px 14px;border-radius:20px;border:1px solid #e8503a;background:#3a1a14;color:#e8503a;font-size:13px;font-weight:600;cursor:pointer">Most Recent</button>
+          <button onclick="setOnlineSort('youngest')" id="sort-youngest" style="flex-shrink:0;padding:6px 14px;border-radius:20px;border:1px solid #252525;background:transparent;color:#6b6866;font-size:13px;cursor:pointer">Youngest</button>
+          <button onclick="setOnlineSort('oldest')" id="sort-oldest" style="flex-shrink:0;padding:6px 14px;border-radius:20px;border:1px solid #252525;background:transparent;color:#6b6866;font-size:13px;cursor:pointer">Oldest</button>
+          <button onclick="setOnlineSort('newest')" id="sort-newest" style="flex-shrink:0;padding:6px 14px;border-radius:20px;border:1px solid #252525;background:transparent;color:#6b6866;font-size:13px;cursor:pointer">Newest Profiles</button>
+          <button onclick="setOnlineSort('closest')" id="sort-closest" style="flex-shrink:0;padding:6px 14px;border-radius:20px;border:1px solid #252525;background:transparent;color:#6b6866;font-size:13px;cursor:pointer">Closest</button>
         </div>
-        <div id="online-list" style="display:flex;gap:12px;overflow-x:auto;padding-bottom:10px;scrollbar-width:none">
-          <p style="color:#6b6866;font-size:13px;padding:8px 0">Loading...</p>
+        <div id="online-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:3px">
+          <div style="grid-column:1/-1;text-align:center;padding:40px 0"><p style="color:#6b6866;font-size:14px">Loading...</p></div>
         </div>
       </div>
 
-      <!-- LIKED RECENTLY -->
-      <div id="liked-section" style="padding:8px 16px 0">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <span style="color:#f0ede8;font-size:14px;font-weight:600">❤️ Liked Recently</span>
-        </div>
-        <div id="liked-list" style="display:flex;gap:12px;overflow-x:auto;padding-bottom:10px;scrollbar-width:none">
-          <p style="color:#6b6866;font-size:13px;padding:8px 0">Loading...</p>
+      <!-- LIKED RECENTLY VIEW -->
+      <div id="discover-liked-view" style="display:none;padding:16px">
+        <p style="color:#6b6866;font-size:13px;margin-bottom:16px">People you've liked — tap to view their profile.</p>
+        <div id="liked-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:3px">
+          <div style="grid-column:1/-1;text-align:center;padding:40px 0"><p style="color:#6b6866;font-size:14px">Loading...</p></div>
         </div>
       </div>
 
-      <div class="card-stack" id="card-stack"></div>
     </div>
 
     <!-- MESSAGES TAB -->
@@ -1090,105 +1100,131 @@ function switchTab2(tab) {
 }
 
 // ── DISCOVER ──────────────────────────────────────
-// ── ONLINE NOW & LIKED RECENTLY ───────────────────
+// ── DISCOVER SUB-TABS ─────────────────────────────
+let currentDiscoverTab = 'swipe'
+let currentOnlineSort = 'recent'
+
+function switchDiscoverTab(tab) {
+  currentDiscoverTab = tab
+  const tabs = ['swipe', 'online', 'liked']
+  tabs.forEach(t => {
+    const btn = el(`sub-tab-${t}`)
+    const view = el(`discover-${t === 'swipe' ? 'swipe' : t === 'online' ? 'online' : 'liked'}-view`)
+    const isActive = t === tab
+    if (btn) {
+      btn.style.color = isActive ? '#e8503a' : '#6b6866'
+      btn.style.borderBottom = isActive ? '2px solid #e8503a' : '2px solid transparent'
+    }
+    if (view) view.style.display = isActive ? '' : 'none'
+  })
+  if (tab === 'online') loadOnlineNow()
+  if (tab === 'liked') loadLikedRecently()
+}
+
+function setOnlineSort(sort) {
+  currentOnlineSort = sort
+  const sorts = ['recent', 'youngest', 'oldest', 'newest', 'closest']
+  sorts.forEach(s => {
+    const btn = el(`sort-${s}`)
+    if (!btn) return
+    const isActive = s === sort
+    btn.style.borderColor = isActive ? '#e8503a' : '#252525'
+    btn.style.background = isActive ? '#3a1a14' : 'transparent'
+    btn.style.color = isActive ? '#e8503a' : '#6b6866'
+    btn.style.fontWeight = isActive ? '600' : '400'
+  })
+  loadOnlineNow()
+}
+
+function renderProfileGrid(profiles, containerId, emptyMsg) {
+  const grid = el(containerId)
+  if (!profiles || profiles.length === 0) {
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px 20px"><p style="color:#6b6866;font-size:14px">${emptyMsg}</p></div>`
+    return
+  }
+  grid.innerHTML = profiles.map(p => {
+    const photo = p.photo_urls?.[0]
+    const name = p.display_name || 'Member'
+    const isOnline = p.last_seen && (Date.now() - new Date(p.last_seen).getTime()) < 15 * 60 * 1000
+    return `
+    <div onclick="showProfilePreview('${p.id}')" style="cursor:pointer;position:relative;aspect-ratio:1;background:#1c1c1c;overflow:hidden">
+      ${photo
+        ? `<img src="${photo}" style="width:100%;height:100%;object-fit:cover">`
+        : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:32px;color:#f0ede8;font-weight:700">${name.charAt(0).toUpperCase()}</div>`}
+      ${isOnline ? `<span style="position:absolute;top:6px;right:6px;width:10px;height:10px;background:#2ecc71;border-radius:50%;border:2px solid #0a0a0a"></span>` : ''}
+      <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.75));padding:16px 8px 6px">
+        <p style="color:#fff;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name.split(' ')[0]}</p>
+      </div>
+    </div>`
+  }).join('')
+}
+
 async function loadOnlineNow() {
-  const list = el('online-list')
-  const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString()
+  const grid = el('online-grid')
+  grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px 0"><p style="color:#6b6866;font-size:14px">Loading...</p></div>`
 
-  let query = sb.from('profiles')
-    .select('*')
-    .gte('last_seen', fifteenMinsAgo)
-    .neq('id', currentUser.id)
-    .limit(20)
+  let query = sb.from('profiles').select('*').neq('id', currentUser.id).limit(60)
 
-  // Auto-filter by seeking preference
+  // Auto-filter by seeking
   if (currentProfile?.seeking && currentProfile.seeking !== 'Everyone') {
     const genderWanted = currentProfile.seeking === 'Women' ? 'Woman' : 'Man'
     query = query.eq('gender', genderWanted)
   }
 
-  const { data } = await query
-
-  if (!data || data.length === 0) {
-    list.innerHTML = '<p style="color:#6b6866;font-size:13px;padding:8px 0">No one online right now — check back soon.</p>'
-    return
+  // Sort
+  if (currentOnlineSort === 'recent') {
+    query = query.order('last_seen', { ascending: false, nullsFirst: false })
+  } else if (currentOnlineSort === 'newest') {
+    query = query.order('created_at', { ascending: false })
+  } else if (currentOnlineSort === 'youngest') {
+    query = query.order('birthdate', { ascending: false })
+  } else if (currentOnlineSort === 'oldest') {
+    query = query.order('birthdate', { ascending: true })
+  } else if (currentOnlineSort === 'closest') {
+    query = query.order('last_seen', { ascending: false, nullsFirst: false })
   }
 
-  // Client-side distance filter
-  const filtered = data.filter(p => {
-    if (filterDistance !== null && userLat && userLng && p.lat && p.lng) {
-      return haversineDistance(userLat, userLng, p.lat, p.lng) <= filterDistance
+  const { data } = await query
+
+  let filtered = (data || []).filter(p => {
+    if (currentOnlineSort === 'recent') {
+      return p.last_seen != null
     }
     return true
   })
 
-  if (filtered.length === 0) {
-    list.innerHTML = '<p style="color:#6b6866;font-size:13px;padding:8px 0">No one online nearby right now.</p>'
-    return
+  // Distance sort client-side
+  if (currentOnlineSort === 'closest' && userLat && userLng) {
+    filtered = filtered
+      .filter(p => p.lat && p.lng)
+      .sort((a, b) => haversineDistance(userLat, userLng, a.lat, a.lng) - haversineDistance(userLat, userLng, b.lat, b.lng))
   }
 
-  list.innerHTML = filtered.map(p => {
-    const photo = p.photo_urls?.[0]
-    const name = p.display_name || 'Member'
-    const age = p.birthdate ? Math.floor((Date.now() - new Date(p.birthdate)) / (365.25 * 24 * 3600 * 1000)) : ''
-    return `
-    <div onclick="showProfilePreview('${p.id}')" style="flex-shrink:0;cursor:pointer;text-align:center;width:72px">
-      <div style="position:relative;width:64px;height:64px;margin:0 auto 6px">
-        <div style="width:64px;height:64px;border-radius:50%;background:#252525;overflow:hidden;border:2px solid #1c1c1c">
-          ${photo ? `<img src="${photo}" style="width:100%;height:100%;object-fit:cover">` : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#f0ede8;font-size:20px;font-weight:700">${name.charAt(0).toUpperCase()}</div>`}
-        </div>
-        <span style="position:absolute;bottom:1px;right:1px;width:12px;height:12px;background:#2ecc71;border-radius:50%;border:2px solid #0a0a0a"></span>
-      </div>
-      <p style="color:#f0ede8;font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:72px">${name.split(' ')[0]}</p>
-      ${age ? `<p style="color:#6b6866;font-size:11px">${age}</p>` : ''}
-    </div>`
-  }).join('')
+  renderProfileGrid(filtered, 'online-grid', 'No profiles found. Try a different filter.')
 }
 
 async function loadLikedRecently() {
-  const list = el('liked-list')
+  const grid = el('liked-grid')
+  grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px 0"><p style="color:#6b6866;font-size:14px">Loading...</p></div>`
 
   const { data: swipes } = await sb.from('swipes')
     .select('swiped_id, created_at')
     .eq('swiper_id', currentUser.id)
-    .eq('direction', 'right')
+    .in('direction', ['like', 'super'])
     .order('created_at', { ascending: false })
-    .limit(20)
+    .limit(60)
 
   if (!swipes || swipes.length === 0) {
-    list.innerHTML = '<p style="color:#6b6866;font-size:13px;padding:8px 0">You haven\'t liked anyone yet. Start swiping!</p>'
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px 20px"><p style="color:#6b6866;font-size:14px">You haven't liked anyone yet. Start swiping!</p></div>`
     return
   }
 
   const ids = swipes.map(s => s.swiped_id)
   const { data: profiles } = await sb.from('profiles').select('*').in('id', ids)
-
-  if (!profiles || profiles.length === 0) {
-    list.innerHTML = '<p style="color:#6b6866;font-size:13px;padding:8px 0">Could not load liked profiles.</p>'
-    return
-  }
-
-  // Sort by swipe order
-  const profileMap = Object.fromEntries(profiles.map(p => [p.id, p]))
+  const profileMap = Object.fromEntries((profiles || []).map(p => [p.id, p]))
   const ordered = swipes.map(s => profileMap[s.swiped_id]).filter(Boolean)
 
-  list.innerHTML = ordered.map(p => {
-    const photo = p.photo_urls?.[0]
-    const name = p.display_name || 'Member'
-    const age = p.birthdate ? Math.floor((Date.now() - new Date(p.birthdate)) / (365.25 * 24 * 3600 * 1000)) : ''
-    const isOnline = p.last_seen && (Date.now() - new Date(p.last_seen).getTime()) < 15 * 60 * 1000
-    return `
-    <div onclick="showProfilePreview('${p.id}')" style="flex-shrink:0;cursor:pointer;text-align:center;width:72px">
-      <div style="position:relative;width:64px;height:64px;margin:0 auto 6px">
-        <div style="width:64px;height:64px;border-radius:50%;background:#252525;overflow:hidden;border:2px solid ${isOnline ? '#2ecc71' : '#1c1c1c'}">
-          ${photo ? `<img src="${photo}" style="width:100%;height:100%;object-fit:cover">` : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#f0ede8;font-size:20px;font-weight:700">${name.charAt(0).toUpperCase()}</div>`}
-        </div>
-        ${isOnline ? `<span style="position:absolute;bottom:1px;right:1px;width:12px;height:12px;background:#2ecc71;border-radius:50%;border:2px solid #0a0a0a"></span>` : ''}
-      </div>
-      <p style="color:#f0ede8;font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:72px">${name.split(' ')[0]}</p>
-      ${age ? `<p style="color:#6b6866;font-size:11px">${age}</p>` : ''}
-    </div>`
-  }).join('')
+  renderProfileGrid(ordered, 'liked-grid', 'No liked profiles found.')
 }
 
 async function showProfilePreview(userId) {
@@ -1214,7 +1250,7 @@ async function showProfilePreview(userId) {
     .select('id')
     .eq('swiper_id', currentUser.id)
     .eq('swiped_id', p.id)
-    .eq('direction', 'right')
+    .in('direction', ['like', 'super'])
     .single()
 
   const isMatched = !!match
@@ -1273,8 +1309,6 @@ async function updateLastSeen() {
 }
 
 async function loadDiscover() {
-  loadOnlineNow()
-  loadLikedRecently()
   el('card-stack').innerHTML = '<div class="empty-state"><p style="color:#6b6866;font-size:14px">Finding people nearby...</p></div>'
   const { data: swipes } = await sb.from('swipes').select('swiped_id').eq('swiper_id', currentUser.id)
   const swipedIds = (swipes || []).map(s => s.swiped_id)
