@@ -681,6 +681,7 @@ async function acceptTos() {
       await sb.from('profiles').upsert({
         id: data.user.id,
         display_name: name,
+        email: email,
         hsv_type: selectedHsv,
         gender: selectedGender,
         seeking: selectedSeeking,

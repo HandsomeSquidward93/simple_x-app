@@ -118,7 +118,6 @@
       <button class="tab active" onclick="showTab('overview')">Overview</button>
       <button class="tab" onclick="showTab('users')">Users</button>
       <button class="tab" onclick="showTab('reports')">Reports</button>
-      <button class="tab" onclick="showTab('testers')">Testers</button>
     </div>
 
     <!-- OVERVIEW TAB -->
@@ -158,6 +157,7 @@
             <thead>
               <tr>
                 <th>Name</th>
+                <th>Email</th>
                 <th>Gender</th>
                 <th>HSV Type</th>
                 <th>City</th>
@@ -192,38 +192,6 @@
             <tbody id="reports-table"></tbody>
           </table>
         </div>
-      </div>
-    </div>
-
-    <!-- TESTERS TAB -->
-    <div id="tab-testers" style="display:none">
-      <div class="table-card">
-        <div class="table-header">
-          <span class="table-title">Play Store Testers</span>
-          <span class="table-count" id="testers-count">0 / 12 testers</span>
-        </div>
-        <div style="background:#1a1a1a;border-radius:8px;height:8px;margin-bottom:20px;overflow:hidden">
-          <div id="testers-progress" style="height:100%;width:0%;background:#e8503a;transition:width 0.3s;border-radius:8px"></div>
-        </div>
-        <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap">
-          <input id="tester-email-input" type="email" placeholder="tester@gmail.com" style="flex:1;min-width:200px;background:#1e1e1e;border:1px solid #2a2a2a;border-radius:8px;padding:10px 14px;color:#f0ede8;font-size:14px;outline:none">
-          <input id="tester-note-input" type="text" placeholder="Note (optional)" style="flex:1;min-width:150px;background:#1e1e1e;border:1px solid #2a2a2a;border-radius:8px;padding:10px 14px;color:#f0ede8;font-size:14px;outline:none">
-          <button onclick="addTester()" style="background:#e8503a;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer">Add</button>
-          <button onclick="copyAllEmails()" style="background:#1e1e1e;color:#f0ede8;border:1px solid #2a2a2a;border-radius:8px;padding:10px 20px;font-size:14px;cursor:pointer">Copy All</button>
-        </div>
-        <div style="overflow-x:auto">
-          <table>
-            <thead>
-              <tr>
-                <th>Gmail Address</th>
-                <th>Note</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody id="testers-list"></tbody>
-          </table>
-        </div>
-        <p style="color:#6b6866;font-size:12px;margin-top:16px">Add 12 testers then paste their emails into Play Console → Closed Beta → Testers. They must opt in and use the app for 14 consecutive days.</p>
       </div>
     </div>
   </main>
@@ -268,15 +236,14 @@ async function adminSignout() {
 }
 
 function showTab(tab) {
-  ['overview','users','reports','testers'].forEach(t => {
+  ['overview','users','reports'].forEach(t => {
     el('tab-' + t).style.display = t === tab ? '' : 'none'
   })
   document.querySelectorAll('.tab').forEach((btn, i) => {
-    btn.classList.toggle('active', ['overview','users','reports','testers'][i] === tab)
+    btn.classList.toggle('active', ['overview','users','reports'][i] === tab)
   })
   if (tab === 'users') loadUsers()
   if (tab === 'reports') loadReports()
-  if (tab === 'testers') loadTesters()
 }
 
 async function loadOverview() {
@@ -388,6 +355,7 @@ async function loadUsers() {
   tbody.innerHTML = data.map(u => `
     <tr>
       <td>${u.display_name || '—'}</td>
+      <td style="color:#6b6866;font-size:13px">${u.email || '—'}</td>
       <td>${u.gender ? `<span class="badge ${u.gender === 'Woman' ? 'woman' : 'man'}">${u.gender}</span>` : '—'}</td>
       <td>${u.hsv_type ? `<span class="badge ${u.hsv_type === 'HSV-1' ? 'hsv1' : u.hsv_type === 'HSV-2' ? 'hsv2' : 'both'}">${u.hsv_type}</span>` : '—'}</td>
       <td>${u.city || '—'}</td>
@@ -432,58 +400,6 @@ async function loadReports() {
       </td>
     </tr>
   `).join('')
-}
-
-// ── TESTERS ──────────────────────────────────────────────────────────────────
-function loadTesters() {
-  const stored = JSON.parse(localStorage.getItem('sx_testers') || '[]')
-  renderTesters(stored)
-}
-
-function renderTesters(testers) {
-  const list = el('testers-list')
-  el('testers-count').textContent = testers.length + ' / 12 testers'
-  el('testers-progress').style.width = Math.min(100, (testers.length / 12) * 100) + '%'
-  el('testers-progress').style.background = testers.length >= 12 ? '#22c55e' : '#e8503a'
-
-  if (testers.length === 0) {
-    list.innerHTML = '<tr><td colspan="3" class="loading">No testers added yet</td></tr>'
-    return
-  }
-  list.innerHTML = testers.map((t, i) => `
-    <tr>
-      <td style="color:#f0ede8">${t.email}</td>
-      <td>${t.note || '—'}</td>
-      <td><button class="action-btn danger" onclick="removeTester(${i})">Remove</button></td>
-    </tr>
-  `).join('')
-}
-
-function addTester() {
-  const email = el('tester-email-input').value.trim()
-  const note = el('tester-note-input').value.trim()
-  if (!email) return
-  const stored = JSON.parse(localStorage.getItem('sx_testers') || '[]')
-  if (stored.find(t => t.email === email)) { alert('Already added'); return }
-  stored.push({ email, note, added: new Date().toLocaleDateString() })
-  localStorage.setItem('sx_testers', JSON.stringify(stored))
-  el('tester-email-input').value = ''
-  el('tester-note-input').value = ''
-  renderTesters(stored)
-}
-
-function removeTester(i) {
-  const stored = JSON.parse(localStorage.getItem('sx_testers') || '[]')
-  stored.splice(i, 1)
-  localStorage.setItem('sx_testers', JSON.stringify(stored))
-  renderTesters(stored)
-}
-
-function copyAllEmails() {
-  const stored = JSON.parse(localStorage.getItem('sx_testers') || '[]')
-  if (!stored.length) return
-  navigator.clipboard.writeText(stored.map(t => t.email).join('\n'))
-  alert('Emails copied to clipboard!')
 }
 
 // Check existing session on load
