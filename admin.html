@@ -347,6 +347,34 @@ function buildHsvChart(profiles) {
   })
 }
 
+
+async function sendEmailToAll() {
+  const { data } = await sb.from('profiles').select('email, display_name').not('email', 'is', null)
+  if (!data || data.length === 0) { alert('No users with emails found'); return }
+  if (!confirm('Send welcome/opt-in email to ' + data.length + ' users?')) return
+  let sent = 0, failed = 0
+  for (const u of data) {
+    if (!u.email) continue
+    try {
+      await emailjs.send('simplex_service', 'template_no11won', {
+        to_email: u.email,
+        to_name: u.display_name || 'there',
+      })
+      sent++
+      await new Promise(r => setTimeout(r, 300))
+    } catch(e) {
+      failed++
+      console.error('Failed:', u.email, e)
+    }
+  }
+  alert('Done! Sent: ' + sent + ', Failed: ' + failed)
+}
+
+async function toggleTester(id, current) {
+  await sb.from('profiles').update({ is_tester: !current }).eq('id', id)
+  loadUsers()
+}
+
 async function loadUsers() {
   const tbody = el('users-table')
   tbody.innerHTML = '<tr><td colspan="6" class="loading">Loading...</td></tr>'
