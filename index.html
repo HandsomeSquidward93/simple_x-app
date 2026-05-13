@@ -445,9 +445,10 @@
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6b6866" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="nav-msg-icon"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         <span class="nav-label">Messages</span>
       </button>
-      <button class="nav-btn" id="nav-research" onclick="switchTab2('research')">
+      <button class="nav-btn" id="nav-research" onclick="switchTab2('research');clearResearchBadge()" style="position:relative">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6b6866" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
         <span class="nav-label">Research</span>
+        <span id="research-badge" style="display:none;position:absolute;top:4px;right:18px;background:#e8503a;color:#fff;font-size:10px;font-weight:700;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;line-height:1"></span>
       </button>
       <button class="nav-btn" id="nav-community" onclick="switchTab2('community')">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6b6866" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -833,6 +834,7 @@ async function handleLogout() {
 
 // ── APP ENTRY ─────────────────────────────────────
 async function enterApp(user) {
+  setTimeout(checkResearchBadge, 500)
   currentUser = user
   const { data } = await sb.from('profiles').select('*').eq('id', user.id).single()
   currentProfile = data
@@ -2037,31 +2039,43 @@ async function saveProfile() {
 // ── RESEARCH ─────────────────────────────────────
 const RESEARCH_ARTICLES = [
   {
-    title: "CRISPR-based therapy targets latent HSV in preclinical studies",
-    date: "2025–2026",
-    summary: "Researchers at Fred Hutchinson Cancer Center have published preclinical results showing CRISPR gene editing can reduce latent HSV DNA in animal models. Early-stage human safety trials are in planning. This is early-phase research — a clinical treatment is likely years away, but it represents the most credible path toward a functional cure.",
-    tag: "Cure Research",
-    tagColor: "#2ecc71",
-    tagBg: "#0d2e1a",
-    link: "https://www.fredhutch.org/en/research/divisions/vaccine-infectious-disease-division.html"
-  },
-  {
-    title: "Pritelivir: a next-generation antiviral in late-stage trials",
-    date: "Ongoing",
-    summary: "Pritelivir works differently from acyclovir-class drugs by targeting the viral helicase-primase complex, reducing viral shedding more consistently. Phase 3 trials are ongoing. It is not yet FDA approved but has shown strong results for patients who don't respond well to current antivirals.",
+    title: "ABI-5366: 94% viral shedding reduction — Phase II launching mid-2026",
+    date: "2026 — New",
+    summary: "ABI-5366, developed by Assembly Bio in partnership with Gilead Sciences, reduced HSV-2 viral shedding by 94% in a Phase Ib trial — far exceeding the 80-85% target. Phase II trials are expected to launch mid-2026. The drug has potential for once-weekly or once-monthly oral dosing, a major improvement over daily antivirals. Not a cure, but possibly the most significant treatment advance in decades.",
     tag: "Treatment",
     tagColor: "#3498db",
     tagBg: "#0a1a2e",
-    link: "https://www.nih.gov/news-events/news-releases"
+    link: "https://www.clinicaltrialsarena.com/news/assembly-bio-herpes-drug-94-viral-shedding/",
+    isNew: true
   },
   {
-    title: "mRNA vaccine candidates for HSV-2 in active trials",
-    date: "2024–2026",
-    summary: "Multiple mRNA-based HSV-2 vaccine candidates are in clinical trials, including programs from Moderna and research groups at Penn Medicine. Phase 1 results have shown immune responses in seronegative participants. These are therapeutic and preventive vaccine candidates — timelines to market remain uncertain.",
+    title: "Pritelivir: Phase 3 complete — FDA filing expected 2026",
+    date: "2026 — Updated",
+    summary: "Pritelivir has completed a successful Phase 3 trial and the company plans to file for FDA approval in 2026. It targets the viral helicase-primase complex differently than acyclovir-class drugs, making it effective for patients with drug-resistant HSV. This is the most advanced new antiviral in the approval pipeline.",
+    tag: "Treatment",
+    tagColor: "#3498db",
+    tagBg: "#0a1a2e",
+    link: "https://www.herpesopportunity.com/post/herpes-cure-and-vaccine",
+    isNew: true
+  },
+  {
+    title: "BioNTech HSV-2 preventive vaccine (BNT163) in Phase 1 trials",
+    date: "2026 — New",
+    summary: "BioNTech — the company behind one of the COVID-19 vaccines — has a preventive HSV-2 vaccine called BNT163 in Phase 1 clinical trials. Early data shows it is safe and producing an immune response in participants. Note: Moderna dropped their HSV vaccine program in late 2025. BNT163 is a preventive vaccine for people who do not yet have HSV-2, not a therapeutic cure.",
     tag: "Vaccine",
     tagColor: "#e8503a",
     tagBg: "#3a1a14",
-    link: "https://clinicaltrials.gov/search?term=HSV+vaccine"
+    link: "https://clinicaltrials.gov/search?term=BNT163+herpes",
+    isNew: true
+  },
+  {
+    title: "CRISPR & gene drive: Fred Hutch eliminates 90%+ of latent HSV",
+    date: "2024–2026",
+    summary: "Fred Hutch researchers have eliminated 90% or more of latent HSV-1 in preclinical animal models using dual gene-editing scissors (meganucleases + CRISPR). In a 2024 follow-up, the same team demonstrated a gene drive approach — using a modified herpes virus to target and rewrite HSV DNA in infected neurons. Human clinical trials are being planned. This remains the most credible path toward a functional cure.",
+    tag: "Cure Research",
+    tagColor: "#2ecc71",
+    tagBg: "#0d2e1a",
+    link: "https://www.fredhutch.org/en/news/releases/2024/05/herpes-cure-with-gene-editing-makes-progress-in-laboratory-studi.html"
   },
   {
     title: "Suppressive therapy: what the evidence actually shows",
@@ -2137,6 +2151,33 @@ const RESEARCH_ARTICLES = [
   },
 ]
 
+
+const RESEARCH_SEEN_KEY = 'sx_research_seen_v2'
+
+function checkResearchBadge() {
+  const seen = JSON.parse(localStorage.getItem(RESEARCH_SEEN_KEY) || '[]')
+  const newCount = RESEARCH_ARTICLES.filter(a => a.isNew && !seen.includes(a.title)).length
+  const badge = document.getElementById('research-badge')
+  if (badge) {
+    if (newCount > 0) {
+      badge.textContent = newCount
+      badge.style.display = 'flex'
+    } else {
+      badge.style.display = 'none'
+    }
+  }
+}
+
+function clearResearchBadge() {
+  const seen = JSON.parse(localStorage.getItem(RESEARCH_SEEN_KEY) || '[]')
+  RESEARCH_ARTICLES.filter(a => a.isNew).forEach(a => {
+    if (!seen.includes(a.title)) seen.push(a.title)
+  })
+  localStorage.setItem(RESEARCH_SEEN_KEY, JSON.stringify(seen))
+  const badge = document.getElementById('research-badge')
+  if (badge) badge.style.display = 'none'
+}
+
 function loadResearch() {
   const list = el('research-list')
   const medical = RESEARCH_ARTICLES.filter(a => a.tag !== 'Holistic')
@@ -2146,7 +2187,7 @@ function loadResearch() {
     return `
     <div style="background:#1c1c1c;border-radius:16px;border:1px solid #252525;padding:18px;margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
-        <span style="background:${a.tagBg};color:${a.tagColor};font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px">${a.tag}</span>
+        <div style="display:flex;align-items:center;gap:6px"><span style="background:${a.tagBg};color:${a.tagColor};font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px">${a.tag}</span>${a.isNew ? '<span style="background:#e8503a;color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px">NEW</span>' : ''}</div>
         <span style="color:#6b6866;font-size:12px">${a.date}</span>
       </div>
       <h3 style="color:#f0ede8;font-size:15px;font-weight:600;margin-bottom:8px;line-height:1.4">${a.title}</h3>
