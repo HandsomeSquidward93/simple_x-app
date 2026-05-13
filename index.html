@@ -1249,7 +1249,7 @@ function switchTab2(tab) {
     }
   })
   el('location-pill').style.display = tab === 'discover' ? '' : 'none'
-  if (tab === 'messages') { loadMatches(); setUnreadDot(false) }
+  if (tab === 'messages') { loadMatches() }
   if (tab === 'research') loadResearch()
   if (tab === 'community') loadCommunity()
   if (tab === 'profile') renderProfileScreen()
@@ -1794,7 +1794,9 @@ async function loadMatches() {
     const age = timeAgo(lastMsg ? lastMsg.created_at : m.created_at)
     const seenKey = 'sx_last_seen_' + m.id
     const lastSeen = localStorage.getItem(seenKey)
-    const unread = lastMsg && lastMsg.sender_id !== currentUser.id && (!lastSeen || new Date(lastMsg.created_at) > new Date(lastSeen))
+    const msgTime = lastMsg ? new Date(lastMsg.created_at).getTime() : 0
+    const seenTime = lastSeen ? new Date(lastSeen).getTime() : 0
+    const unread = lastMsg && lastMsg.sender_id !== currentUser.id && msgTime > seenTime
     return `
       <div class="match-item" onclick="openChat(${JSON.stringify(m).replace(/"/g,'&quot;')})">
         <div style="position:relative">
@@ -1825,6 +1827,7 @@ let activeMatch = null
 function openChat(match) {
   activeMatch = match
   localStorage.setItem('sx_last_seen_' + match.id, new Date().toISOString())
+  setUnreadDot(false)
   const other = match.user_a === currentUser.id ? match.profiles_b : match.profiles_a
   const color = AVATAR_COLORS[1]
   avatarEl(other?.display_name || '?', 38, 1, el('chat-avatar'))
