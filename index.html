@@ -402,6 +402,13 @@
             <button class="hsv-btn" onclick="selectEditSeeking(this,'Women')">Women</button>
             <button class="hsv-btn" onclick="selectEditSeeking(this,'Everyone')">Everyone</button>
           </div>
+          <p style="color:#6b6866;font-size:12px;margin:14px 0 10px">Looking for</p>
+          <div class="hsv-options" id="edit-rel-type-options">
+            <button class="hsv-btn" onclick="selectEditRelType(this,'Serious')">Serious</button>
+            <button class="hsv-btn" onclick="selectEditRelType(this,'Casual')">Casual</button>
+            <button class="hsv-btn" onclick="selectEditRelType(this,'Friends')">Friends</button>
+            <button class="hsv-btn" onclick="selectEditRelType(this,'Open')">Open to anything</button>
+          </div>
           <p style="color:#6b6866;font-size:12px;margin:14px 0 10px">Date of birth</p>
           <div style="display:flex;gap:8px">
             <select id="edit-dob-month" class="input" style="flex:1.2;color:#f0ede8;background:#1e1e1e">
@@ -438,6 +445,21 @@
         </div>
         <span class="premium-badge">$10/mo</span>
       </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-top:1px solid #1e1e1c">
+        <div>
+          <p style="color:#f0ede8;font-size:14px;font-weight:600">Incognito mode</p>
+          <p style="color:#6b6866;font-size:12px;margin-top:2px">Hide from Discover. Only people you like can find you.</p>
+        </div>
+        <label style="position:relative;display:inline-block;width:44px;height:24px;cursor:pointer">
+          <input type="checkbox" id="incognito-toggle" onchange="toggleIncognito(this.checked)" style="opacity:0;width:0;height:0">
+          <span id="incognito-slider" style="position:absolute;inset:0;background:#2a2a2a;border-radius:24px;transition:0.2s"></span>
+          <span id="incognito-thumb" style="position:absolute;left:3px;top:3px;width:18px;height:18px;background:#fff;border-radius:50%;transition:0.2s"></span>
+        </label>
+      </div>
+      <button class="btn-ghost" onclick="boostProfile()" style="display:flex;justify-content:space-between;align-items:center">
+        <span>🚀 Boost profile</span>
+        <span style="font-size:12px;color:#6b6866">Appear at top of Discover for 1hr</span>
+      </button>
       <button class="btn-ghost" onclick="shareApp()">Share</button>
       <button class="btn-ghost" onclick="handleLogout()">Sign out</button>
       <button class="btn-ghost" onclick="showDeleteAccountModal()" style="color:#e8503a;border-color:#3a1a14;margin-top:4px">Delete account</button>
@@ -602,6 +624,8 @@ let authTab = 'in'
 let selectedHsv = ''
 let selectedGender = ''
 let selectedSeeking = ''
+let selectedRelType = ''
+let editRelType = ''
 let editHsv = ''
 let editGender = ''
 let editSeeking = ''
@@ -694,6 +718,19 @@ function selectGender(btn, val) {
   btn.classList.add('selected')
 }
 
+
+function selectRelType(btn, val) {
+  selectedRelType = val
+  document.querySelectorAll('#rel-type-options .hsv-btn').forEach(b => b.classList.remove('selected'))
+  btn.classList.add('selected')
+}
+
+function selectEditRelType(btn, val) {
+  editRelType = val
+  document.querySelectorAll('#edit-rel-type-options .hsv-btn').forEach(b => b.classList.remove('selected'))
+  btn.classList.add('selected')
+}
+
 function selectSeeking(btn, val) {
   selectedSeeking = val
   document.querySelectorAll('#seeking-options .hsv-btn').forEach(b => b.classList.remove('selected'))
@@ -728,6 +765,7 @@ async function acceptTos() {
         display_name: name,
         email: email,
         hsv_type: selectedHsv,
+        relationship_type: selectedRelType || null,
         gender: selectedGender,
         seeking: selectedSeeking,
         birthdate: el('auth-birthdate').value || null,
@@ -1048,6 +1086,28 @@ async function loadPostStats(postId) {
         <span style="color:#9e9b97;font-size:13px">${c.body}</span>
       </div>`).join('')
   }
+}
+
+
+async function toggleIncognito(val) {
+  const slider = document.getElementById('incognito-slider')
+  const thumb = document.getElementById('incognito-thumb')
+  if (slider) slider.style.background = val ? '#e8503a' : '#2a2a2a'
+  if (thumb) thumb.style.transform = val ? 'translateX(20px)' : 'translateX(0)'
+  await sb.from('profiles').update({ incognito: val }).eq('id', currentUser.id)
+  if (currentProfile) currentProfile.incognito = val
+  showToast(val ? 'Incognito on — you're hidden from Discover' : 'Incognito off — you're visible in Discover')
+}
+
+async function boostProfile() {
+  if (!currentProfile?.is_premium) {
+    showUpgradePrompt('Profile boost is a Plus feature. Upgrade to appear at the top of Discover for 1 hour.')
+    return
+  }
+  const boostUntil = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+  await sb.from('profiles').update({ boost_until: boostUntil }).eq('id', currentUser.id)
+  if (currentProfile) currentProfile.boost_until = boostUntil
+  showToast('🚀 Profile boosted for 1 hour!')
 }
 
 async function togglePostLike(postId, btn) {
@@ -1656,8 +1716,8 @@ function renderCard() {
       <div class="card-overlay" onclick="if(discoverProfiles[discoverIdx])showProfilePreview(discoverProfiles[discoverIdx].id)" style="cursor:pointer">
         <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:8px">
           <div>
-            <p class="card-name">${p.display_name}${p.birthdate ? ', ' + getAge(p.birthdate) : ''}</p>
-            <p class="card-city">${p.city || 'Nearby'}${(userLat && userLng && p.lat && p.lng) ? ' · ' + Math.round(haversineDistance(userLat, userLng, p.lat, p.lng)) + ' mi' : ''}</p>
+            <p class="card-name">${p.display_name}${p.birthdate ? ', ' + getAge(p.birthdate) : ''}${p.verified ? ' <span style="color:#3b9eff;font-size:14px">✓</span>' : ''}</p>
+            <p class="card-city">${p.city || 'Nearby'}${(userLat && userLng && p.lat && p.lng) ? ' · ' + Math.round(haversineDistance(userLat, userLng, p.lat, p.lng)) + ' mi' : ''}${p.relationship_type ? ' · ' + p.relationship_type : ''}</p>
           </div>
           ${p.hsv_type ? `<span class="card-badge">${p.hsv_type}</span>` : ''}
         </div>
@@ -2160,6 +2220,15 @@ function renderPhotoGrid() {
     grid.appendChild(add)
   }
 
+  // Set incognito toggle state
+  const incognitoToggle = document.getElementById('incognito-toggle')
+  const slider = document.getElementById('incognito-slider')
+  const thumb = document.getElementById('incognito-thumb')
+  if (incognitoToggle && currentProfile?.incognito) {
+    incognitoToggle.checked = true
+    if (slider) slider.style.background = '#e8503a'
+    if (thumb) thumb.style.transform = 'translateX(20px)'
+  }
   const profileContent = el('profile-content')
   const profileHeader = profileContent.querySelector('.profile-header')
   profileHeader.insertAdjacentElement('afterend', grid)
@@ -2174,6 +2243,13 @@ function toggleEdit() {
     el('edit-bio').value = currentProfile?.bio || ''
     el('edit-birthdate').value = currentProfile?.birthdate || ''
     setDobSelects('edit', currentProfile?.birthdate || '')
+    if (currentProfile?.relationship_type) {
+      editRelType = currentProfile.relationship_type
+      document.querySelectorAll('#edit-rel-type-options .hsv-btn').forEach(b => {
+        if (b.textContent.trim() === currentProfile.relationship_type || 
+            (currentProfile.relationship_type === 'Open' && b.textContent.includes('Open'))) b.classList.add('selected')
+      })
+    }
     editHsv = currentProfile?.hsv_type || ''
     editGender = currentProfile?.gender || ''
     editSeeking = currentProfile?.seeking || ''
