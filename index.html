@@ -927,7 +927,23 @@ async function checkUnreadOnLoad() {
     .in('match_id', matchIds)
     .neq('sender_id', currentUser.id)
     .is('read_at', null)
-  if (count > 0) setUnreadDot(true)
+  // Only show dot if there are unread messages newer than last seen
+  if (count > 0) {
+    const { data: unreadMsgs } = await sb.from('messages')
+      .select('match_id, created_at')
+      .in('match_id', matchIds)
+      .neq('sender_id', currentUser.id)
+      .is('read_at', null)
+      .order('created_at', { ascending: false })
+    
+    const hasActualUnread = unreadMsgs?.some(msg => {
+      const seenKey = 'sx_last_seen_' + msg.match_id
+      const lastSeen = localStorage.getItem(seenKey)
+      if (!lastSeen) return true
+      return new Date(msg.created_at).getTime() > new Date(lastSeen).getTime()
+    })
+    if (hasActualUnread) setUnreadDot(true)
+  }
 }
 
 // ── COMMUNITY ─────────────────────────────────────
