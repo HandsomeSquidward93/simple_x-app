@@ -1629,7 +1629,7 @@ function renderCard() {
         <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:8px">
           <div>
             <p class="card-name">${p.display_name}${p.birthdate ? ', ' + getAge(p.birthdate) : ''}</p>
-            <p class="card-city">${p.city || 'Nearby'}</p>
+            <p class="card-city">${p.city || 'Nearby'}${(userLat && userLng && p.lat && p.lng) ? ' · ' + Math.round(haversineDistance(userLat, userLng, p.lat, p.lng)) + ' mi' : ''}</p>
           </div>
           ${p.hsv_type ? `<span class="card-badge">${p.hsv_type}</span>` : ''}
         </div>
@@ -1828,6 +1828,7 @@ function openChat(match) {
   activeMatch = match
   localStorage.setItem('sx_last_seen_' + match.id, new Date().toISOString())
   setUnreadDot(false)
+  markMessagesRead(match.id)
   const other = match.user_a === currentUser.id ? match.profiles_b : match.profiles_a
   const color = AVATAR_COLORS[1]
   avatarEl(other?.display_name || '?', 38, 1, el('chat-avatar'))
@@ -1859,7 +1860,7 @@ function closeChat() {
 async function loadChatMessages() {
   const msgs = el('chat-messages')
   msgs.innerHTML = ''
-  const { data } = await sb.from('messages').select('*').eq('match_id', activeMatch.id).order('created_at')
+  const { data } = await sb.from('messages').select('*, read_at').eq('match_id', activeMatch.id).order('created_at')
   if (!data || data.length === 0) {
     const other = activeMatch.user_a === currentUser.id ? activeMatch.profiles_b : activeMatch.profiles_a
     msgs.innerHTML = `<p style="color:#6b6866;font-size:14px;text-align:center;margin-top:40px">You matched with ${other?.display_name}. Say hey!</p>`
@@ -1877,7 +1878,8 @@ function appendMessage(msg) {
   const div = document.createElement('div')
   div.className = 'bubble ' + (mine ? 'mine' : 'theirs')
   div.dataset.msgId = msg.id
-  div.innerHTML = `<span class="bubble-text">${msg.content}</span><div class="bubble-time">${time}</div>`
+  const readMark = mine ? (msg.read_at ? " ✓✓" : " ✓") : ""
+  div.innerHTML = `<span class="bubble-text">${msg.content}</span><div class="bubble-time">${time}${readMark}</div>`
 
   // Long press to delete own messages
   if (mine) {
