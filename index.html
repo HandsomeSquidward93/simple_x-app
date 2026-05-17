@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="theme-color" content="#0a0a0a" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -954,6 +954,7 @@ async function enterApp(user) {
   }
   hide('auth')
   show('app-shell')
+  switchTab2('discover')
   loadDiscover()
   renderProfileScreen()
   startRealtimeListeners()
@@ -1587,8 +1588,7 @@ async function showProfilePreview(userId) {
   const { data: p } = await sb.from('profiles').select('*').eq('id', userId).single()
   if (!p) return
 
-  const existing = document.getElementById('profile-preview-modal')
-  if (existing) existing.remove()
+  document.getElementById('profile-full-page')?.remove()
 
   const photos = p.photo_urls || []
   const photo = photos[0]
