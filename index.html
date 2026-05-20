@@ -782,6 +782,8 @@ let editGender = ''
 let editSeeking = ''
 let lastMatchProfile = null
 let lastSeenIntervalId = null
+let loginInProgress = false
+let swReloadPending = false
 
 function show(id) { document.getElementById(id).classList.remove('hidden') }
 function hide(id) { document.getElementById(id).classList.add('hidden') }
@@ -934,6 +936,7 @@ async function acceptTos() {
   hide('tos')
   el('auth-submit').textContent = 'Please wait...'
   show('auth')
+  loginInProgress = true
   try {
     const { data, error } = await sb.auth.signUp({ email, password: pass, options: { data: { display_name: name } } })
     if (error) throw error
@@ -956,6 +959,9 @@ async function acceptTos() {
     el('auth-error').textContent = e.message
     el('auth-error').classList.remove('hidden')
     el('auth-submit').textContent = 'Create account'
+  } finally {
+    loginInProgress = false
+    if (swReloadPending) window.location.reload()
   }
 }
 
@@ -1030,6 +1036,7 @@ async function handleAuth() {
   }
 
   el('auth-submit').textContent = 'Please wait...'
+  loginInProgress = true
 
   try {
     if (authTab === 'in') {
@@ -1042,6 +1049,9 @@ async function handleAuth() {
     el('auth-error').textContent = e.message
     el('auth-error').classList.remove('hidden')
     el('auth-submit').textContent = authTab === 'in' ? 'Sign in' : 'Create account'
+  } finally {
+    loginInProgress = false
+    if (swReloadPending) window.location.reload()
   }
 }
 
@@ -1079,7 +1089,7 @@ async function enterApp(user) {
   }
   hide('auth')
   show('app-shell')
-  switchTab2('discover')
+  requestAnimationFrame(() => requestAnimationFrame(() => switchTab2('discover')))
   loadDiscover()
   renderProfileScreen()
   startRealtimeListeners()
@@ -3333,12 +3343,35 @@ async function deleteAccount() {
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/simple_x-app/sw.js')
+    navigator.serviceWorker.register('/simple_x-app/sw.js').then(reg => {
+      reg.addEventListener('updatefound', () => {
+        const newSW = reg.installing
+        if (!newSW) return
+        newSW.addEventListener('statechange', () => {
+          if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+            newSW.postMessage({ type: 'SKIP_WAITING' })
+          }
+        })
+      })
+    }).catch(() => {})
   })
+
+  let swReloadScheduled = false
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (swReloadScheduled) return
+    swReloadScheduled = true
+    if (loginInProgress) { swReloadPending = true; return }
+    window.location.reload()
+  })
+
   navigator.serviceWorker.addEventListener('message', event => {
-    if (event.data?.type === 'navigate') {
+    const type = event.data?.type
+    if (type === 'navigate') {
       const chatId = new URL(event.data.url, location.origin).searchParams.get('chat')
       if (chatId && currentUser) openChatById(chatId)
+    } else if (type === 'RELOAD' || type === 'SW_UPDATED') {
+      if (loginInProgress) { swReloadPending = true; return }
+      if (!swReloadScheduled) { swReloadScheduled = true; window.location.reload() }
     }
   })
 }
