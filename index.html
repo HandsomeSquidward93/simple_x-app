@@ -1084,9 +1084,35 @@ async function enterApp(user) {
     await sb.from('profiles').update({ email: user.email }).eq('id', user.id)
     currentProfile.email = user.email
   }
+  function dbgNav(label) {
+    const nav = document.getElementById('nav')
+    const shell = document.getElementById('app-shell')
+    const btn = nav && nav.querySelector('.nav-btn')
+    const icon = btn && btn.querySelector('.nav-icon')
+    const label2 = btn && btn.querySelector('.nav-label')
+    const cs  = nav   && getComputedStyle(nav)
+    const bcs = btn   && getComputedStyle(btn)
+    const ics = icon  && getComputedStyle(icon)
+    const lcs = label2 && getComputedStyle(label2)
+    const scs = shell && getComputedStyle(shell)
+    console.log('[NAV ' + label + '] #app-shell: display=' + (scs&&scs.display) + ' visibility=' + (scs&&scs.visibility) + ' opacity=' + (scs&&scs.opacity))
+    console.log('[NAV ' + label + '] #nav: display=' + (cs&&cs.display) + ' visibility=' + (cs&&cs.visibility) + ' opacity=' + (cs&&cs.opacity) + ' height=' + (cs&&cs.height))
+    console.log('[NAV ' + label + '] .nav-btn: display=' + (bcs&&bcs.display) + ' visibility=' + (bcs&&bcs.visibility) + ' opacity=' + (bcs&&bcs.opacity))
+    console.log('[NAV ' + label + '] .nav-icon: display=' + (ics&&ics.display) + ' visibility=' + (ics&&ics.visibility) + ' opacity=' + (ics&&ics.opacity) + ' fontSize=' + (ics&&ics.fontSize) + ' color=' + (ics&&ics.color))
+    console.log('[NAV ' + label + '] .nav-label: display=' + (lcs&&lcs.display) + ' visibility=' + (lcs&&lcs.visibility) + ' color=' + (lcs&&lcs.color) + ' fontSize=' + (lcs&&lcs.fontSize))
+  }
+  dbgNav('before-show')
   hide('auth')
   show('app-shell')
-  requestAnimationFrame(() => requestAnimationFrame(() => switchTab2('discover')))
+  dbgNav('after-show')
+  requestAnimationFrame(() => {
+    dbgNav('rAF-1')
+    requestAnimationFrame(() => {
+      switchTab2('discover')
+      dbgNav('rAF-2-post-switch')
+    })
+  })
+  setTimeout(() => dbgNav('500ms'), 500)
   loadDiscover()
   renderProfileScreen()
   startRealtimeListeners()
