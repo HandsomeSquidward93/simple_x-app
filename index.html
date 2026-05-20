@@ -1104,6 +1104,9 @@ async function enterApp(user) {
   dbgNav('before-show')
   hide('auth')
   show('app-shell')
+  document.body.style.display = 'none'
+  document.body.offsetHeight
+  document.body.style.display = ''
   dbgNav('after-show')
   requestAnimationFrame(() => {
     dbgNav('rAF-1')
