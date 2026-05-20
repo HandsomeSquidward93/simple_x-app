@@ -377,7 +377,7 @@
 
     <!-- PROFILE TAB -->
     <div id="profile-content" style="display:none">
-      <input type="file" id="photo-input" accept="image/*" style="display:none" onchange="uploadPhoto(this)" multiple />
+      <input type="file" id="photo-input" accept="image/*,.heic,.heif" style="display:none" onchange="uploadPhoto(this)" multiple />
       <div class="profile-header">
         <div class="avatar-wrap" onclick="el('photo-input').click()">
           <div class="avatar" id="profile-avatar" style="width:76px;height:76px;font-size:28px"></div>
@@ -747,6 +747,26 @@ function avatarEl(name, size, idx, targetEl, photoUrl) {
   }
 }
 
+function convertToJpeg(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = img.naturalWidth
+      canvas.height = img.naturalHeight
+      canvas.getContext('2d').drawImage(img, 0, 0)
+      URL.revokeObjectURL(url)
+      canvas.toBlob(blob => {
+        if (blob) resolve(blob)
+        else reject(new Error('Canvas conversion failed'))
+      }, 'image/jpeg', 0.9)
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not load image — format may not be supported')) }
+    img.src = url
+  })
+}
+
 async function uploadPhoto(input) {
   const files = Array.from(input.files)
   if (!files.length) return
@@ -762,9 +782,15 @@ async function uploadPhoto(input) {
   const newUrls = []
 
   for (const file of toUpload) {
-    const ext = file.name.split('.').pop()
-    const path = `${currentUser.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
-    const { error: upErr } = await sb.storage.from('avatars').upload(path, file, { upsert: false })
+    let jpegBlob
+    try {
+      jpegBlob = await convertToJpeg(file)
+    } catch (convErr) {
+      showToast('Could not process image: ' + convErr.message)
+      continue
+    }
+    const path = `${currentUser.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`
+    const { error: upErr } = await sb.storage.from('avatars').upload(path, jpegBlob, { upsert: false, contentType: 'image/jpeg' })
     if (upErr) { showToast('Upload failed: ' + upErr.message); continue }
     const { data: urlData } = sb.storage.from('avatars').getPublicUrl(path)
     newUrls.push(urlData.publicUrl)
