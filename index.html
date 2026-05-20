@@ -47,7 +47,7 @@
     #nav {
       position: absolute; bottom: 0; left: 0; right: 0; height: 64px;
       background: #141414; border-top: 1px solid #252525;
-      display: flex; align-items: center;
+      display: flex; align-items: center; z-index: 20;
     }
     .nav-btn { flex: 1; border: none; background: transparent; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 0; }
     .nav-label { font-size: 10px; font-weight: 400; color: #6b6866; }
@@ -776,6 +776,7 @@ let editHsv = ''
 let editGender = ''
 let editSeeking = ''
 let lastMatchProfile = null
+let lastSeenIntervalId = null
 
 function show(id) { document.getElementById(id).classList.remove('hidden') }
 function hide(id) { document.getElementById(id).classList.add('hidden') }
@@ -1073,6 +1074,7 @@ async function enterApp(user) {
   }
   hide('auth')
   show('app-shell')
+  switchTab2('discover')
   loadDiscover()
   renderProfileScreen()
   startRealtimeListeners()
@@ -1083,8 +1085,9 @@ async function enterApp(user) {
   checkProfileComplete()
   registerPushNotifications()
   updateLastSeen()
-  // Refresh last_seen every 5 minutes while app is open
-  setInterval(updateLastSeen, 5 * 60 * 1000)
+  // Refresh last_seen every 5 minutes; clear any previous interval first
+  if (lastSeenIntervalId) clearInterval(lastSeenIntervalId)
+  lastSeenIntervalId = setInterval(updateLastSeen, 5 * 60 * 1000)
   // Deep-link from push notification tap (?chat=MATCH_ID in URL)
   const pendingChat = new URLSearchParams(location.search).get('chat')
   if (pendingChat) {
@@ -1705,6 +1708,11 @@ function renderOnlineFeed(profiles) {
     const dist = (userLat && userLng && p.lat && p.lng) ? Math.round(haversineDistance(userLat, userLng, p.lat, p.lng)) + ' mi' : ''
     const isOnline = p.last_seen && (Date.now() - new Date(p.last_seen).getTime()) < 15 * 60 * 1000
     const photoCount = p.photo_urls?.length || 0
+    const safeName = escapeHtml((p.display_name || '').split(' ')[0])
+    const displayName = escapeHtml(p.display_name || 'Member')
+    const bio = escapeHtml(p.bio || '')
+    const city = escapeHtml(p.city || '')
+    const winkName = (p.display_name || '').split(' ')[0].replace(/\\/g, '\\\\').replace(/'/g, "\\'")
     return `
     <div onclick="showProfilePreview('${p.id}')">
       <div style="position:relative">
@@ -1716,14 +1724,14 @@ function renderOnlineFeed(profiles) {
         ${photoCount > 1 ? `<div style="position:absolute;top:12px;right:12px;background:rgba(0,0,0,0.6);border-radius:20px;padding:3px 10px;font-size:12px;color:#fff">📷 ${photoCount}</div>` : ''}
       </div>
       <div style="padding:16px 20px;border-bottom:1px solid #1a1a1a;cursor:pointer">
-        <h3 style="color:#f0ede8;font-size:20px;font-weight:700;margin:0 0 4px;text-transform:uppercase">${p.display_name || 'Member'}${age ? ', ' + age : ''}${p.verified ? ' <span style="color:#3b9eff">✓</span>' : ''}</h3>
-        ${p.city ? `<p style="color:#9e9b97;font-size:14px;margin:0 0 2px">${p.city}${dist ? ' · ' + dist : ''}</p>` : ''}
-        ${p.hsv_type ? `<p style="color:#9e9b97;font-size:14px;margin:0 0 2px">${p.hsv_type}</p>` : ''}
-        ${p.bio ? `<p style="color:#9e9b97;font-size:14px;margin:8px 0 0;line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${p.bio}</p>` : ''}
+        <h3 style="color:#f0ede8;font-size:20px;font-weight:700;margin:0 0 4px;text-transform:uppercase">${displayName}${age ? ', ' + age : ''}${p.verified ? ' <span style="color:#3b9eff">✓</span>' : ''}</h3>
+        ${p.city ? `<p style="color:#9e9b97;font-size:14px;margin:0 0 2px">${city}${dist ? ' · ' + dist : ''}</p>` : ''}
+        ${p.hsv_type ? `<p style="color:#9e9b97;font-size:14px;margin:0 0 2px">${escapeHtml(p.hsv_type)}</p>` : ''}
+        ${p.bio ? `<p style="color:#9e9b97;font-size:14px;margin:8px 0 0;line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${bio}</p>` : ''}
       </div>
       <div style="display:flex;border-bottom:2px solid #111" onclick="event.stopPropagation()">
-        <button style="flex:1;padding:14px;border:none;background:transparent;color:#f5c518;font-size:15px;cursor:pointer;border-right:1px solid #1a1a1a" onclick="sendWink('${p.id}','${(p.display_name||'').split(' ')[0]}')">😉 Wink</button>
-        <button style="flex:1;padding:14px;border:none;background:transparent;color:#e8503a;font-size:15px;cursor:pointer;border-right:1px solid #1a1a1a" onclick="feedLike('${p.id}', this)">❤️ Like</button>
+        <button style="flex:1;padding:14px;border:none;background:transparent;color:#f5c518;font-size:15px;cursor:pointer;border-right:1px solid #1a1a1a" onclick="sendWink('${p.id}','${winkName}',this)">😉 Wink</button>
+        <button style="flex:1;padding:14px;border:none;background:transparent;color:#e8503a;font-size:15px;cursor:pointer;border-right:1px solid #1a1a1a" onclick="feedLike('${p.id}',this)">❤️ Like</button>
         <button style="flex:1;padding:14px;border:none;background:transparent;color:#9e9b97;font-size:15px;cursor:pointer" onclick="showProfilePreview('${p.id}')">👤 View</button>
       </div>
       <div style="display:flex;align-items:center;justify-content:center;padding:12px 0"><div style="flex:1;height:1px;background:#1e1e1c"></div><span style="margin:0 12px;color:#333;font-size:18px">✦</span><div style="flex:1;height:1px;background:#1e1e1c"></div></div>
@@ -1892,7 +1900,7 @@ async function showProfilePreview(userId) {
     const winkB = document.createElement('button')
     winkB.style.cssText = 'flex:1;padding:14px;border-radius:12px;border:1px solid #252525;background:transparent;color:#f5c518;font-size:20px;cursor:pointer'
     winkB.textContent = '😉'
-    winkB.onclick = () => sendWink(p.id, name.split(' ')[0])
+    winkB.onclick = () => sendWink(p.id, name.split(' ')[0], winkB)
 
     const msgB = document.createElement('button')
     msgB.style.cssText = 'flex:2;padding:14px;border-radius:12px;border:none;background:#e8503a;color:#fff;font-size:15px;font-weight:600;cursor:pointer'
@@ -1944,8 +1952,7 @@ async function openDirectMessage(userId) {
   setTimeout(() => openChat(match), 150)
 }
 
-async function sendWink(userId, name) {
-  const btn = event?.target
+async function sendWink(userId, name, btn) {
   if (btn) { btn.textContent = '✓'; btn.disabled = true }
 
   // Check if already winked recently (last 24hrs)
@@ -1973,6 +1980,26 @@ async function likeFromPreview(userId) {
     showToast('Liked! ❤️')
   }
   loadLikedRecently()
+}
+
+async function feedLike(userId, btn) {
+  if (btn) { btn.textContent = '❤️ Liked'; btn.disabled = true; btn.style.opacity = '0.6' }
+  if (!(await checkLikeLimit())) {
+    if (btn) { btn.textContent = '❤️ Like'; btn.disabled = false; btn.style.opacity = '1' }
+    return
+  }
+  const { data: existing } = await sb.from('swipes')
+    .select('id').eq('swiper_id', currentUser.id).eq('swiped_id', userId).in('direction', ['like','super']).maybeSingle()
+  if (existing) { showToast('Already liked!'); return }
+  await sb.from('swipes').insert({ swiper_id: currentUser.id, swiped_id: userId, direction: 'like' })
+  const { data: theirSwipe } = await sb.from('swipes')
+    .select('id').eq('swiper_id', userId).eq('swiped_id', currentUser.id).in('direction', ['like','super']).maybeSingle()
+  if (theirSwipe) {
+    await sb.from('matches').insert({ user_a: currentUser.id, user_b: userId })
+    showToast("It's a match! 🎉")
+  } else {
+    showToast('Liked! ❤️')
+  }
 }
 
 async function updateLastSeen() {
@@ -2253,7 +2280,7 @@ async function loadMatches() {
     const initial = (other?.display_name || '?')[0].toUpperCase()
     const lastMsg = lastMsgMap[m.id]
     const preview = lastMsg
-      ? (lastMsg.sender_id === currentUser.id ? 'You: ' : '') + lastMsg.content
+      ? (lastMsg.sender_id === currentUser.id ? 'You: ' : '') + escapeHtml(lastMsg.content)
       : 'Matched — say hey!'
     const age = timeAgo(lastMsg ? lastMsg.created_at : m.created_at)
     const seenKey = 'sx_last_seen_' + m.id
@@ -2404,6 +2431,8 @@ async function loadChatMessages() {
 
 function appendMessage(msg) {
   const msgs = el('chat-messages')
+  // Deduplicate: skip if already rendered (race between realtime + initial load)
+  if (msg.id && msgs.querySelector(`[data-msg-id="${CSS.escape(String(msg.id))}"]`)) return
   const placeholder = msgs.querySelector('p')
   if (placeholder) placeholder.remove()
   const mine = msg.sender_id === currentUser.id
@@ -2411,8 +2440,15 @@ function appendMessage(msg) {
   const div = document.createElement('div')
   div.className = 'bubble ' + (mine ? 'mine' : 'theirs')
   div.dataset.msgId = msg.id
-  const readMark = mine ? (msg.read_at ? " ✓✓" : " ✓") : ""
-  div.innerHTML = `<span class="bubble-text">${msg.content}</span><div class="bubble-time">${time}${readMark}</div>`
+  const readMark = mine ? (msg.read_at ? ' ✓✓' : ' ✓') : ''
+  const textSpan = document.createElement('span')
+  textSpan.className = 'bubble-text'
+  textSpan.textContent = msg.content
+  const timeDiv = document.createElement('div')
+  timeDiv.className = 'bubble-time'
+  timeDiv.textContent = time + readMark
+  div.appendChild(textSpan)
+  div.appendChild(timeDiv)
 
   // Long press to delete own messages
   if (mine) {
@@ -3124,7 +3160,7 @@ function openSettings() {
 function closeSettings() {
   el('settings-page').style.display = 'none'
   const nav = el('nav')
-  if (nav) nav.style.display = 'flex'
+  if (nav) { nav.style.display = 'flex'; nav.style.visibility = 'visible'; nav.style.opacity = '1' }
 }
 
 async function toggleNotifications(val) {
