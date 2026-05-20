@@ -1010,6 +1010,12 @@ async function enterApp(user) {
   updateLastSeen()
   // Refresh last_seen every 5 minutes while app is open
   setInterval(updateLastSeen, 5 * 60 * 1000)
+  // Deep-link from push notification tap (?chat=MATCH_ID in URL)
+  const pendingChat = new URLSearchParams(location.search).get('chat')
+  if (pendingChat) {
+    history.replaceState(null, '', location.pathname)
+    setTimeout(() => openChatById(pendingChat), 300)
+  }
 }
 
 function checkProfileComplete() {
@@ -1403,7 +1409,7 @@ function urlBase64ToUint8Array(base64String) {
   return new Uint8Array([...raw].map(c => c.charCodeAt(0)))
 }
 
-async function sendPush(userId, title, body, tag) {
+async function sendPush(userId, title, body, tag, matchId) {
   try {
     await fetch('https://ocwgwfnrstzrapsblkxm.supabase.co/functions/v1/send-push', {
       method: 'POST',
@@ -1411,7 +1417,7 @@ async function sendPush(userId, title, body, tag) {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9jd2d3Zm5yc3R6cmFwc2Jsa3htIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY1NjAxNzksImV4cCI6MjA5MjEzNjE3OX0.Tr_l0wJjUDHdklj1AG9MW9FIlNC3lNgGbklpzz4AAfo'
       },
-      body: JSON.stringify({ user_id: userId, title, body, tag, url: '/simple_x-app/' })
+      body: JSON.stringify({ user_id: userId, title, body, tag, match_id: matchId || null })
     })
   } catch (err) {
     console.warn('Push send failed:', err)
@@ -1433,7 +1439,7 @@ function startRealtimeListeners() {
           if (data) {
             showMatchModal(data)
             // Notify the OTHER user they got a match
-            sendPush(otherId, "It's a match! 🎉", `You matched with ${currentProfile?.display_name || 'someone'} on Simple-x`, 'match')
+            sendPush(otherId, "It's a match! 🎉", `You matched with ${currentProfile?.display_name || 'someone'} on Simple-x`, 'match', m.id)
           }
         })
       }
@@ -2350,7 +2356,8 @@ async function sendMessage() {
     recipientId,
     currentProfile?.display_name || 'New message',
     content.length > 100 ? content.substring(0, 97) + '…' : content,
-    'message'
+    'message',
+    activeMatch.id
   )
 }
 
@@ -3123,6 +3130,12 @@ async function deleteAccount() {
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/simple_x-app/sw.js')
+  })
+  navigator.serviceWorker.addEventListener('message', event => {
+    if (event.data?.type === 'navigate') {
+      const chatId = new URL(event.data.url, location.origin).searchParams.get('chat')
+      if (chatId && currentUser) openChatById(chatId)
+    }
   })
 }
 </script>
